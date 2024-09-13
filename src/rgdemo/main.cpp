@@ -100,11 +100,17 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 	auto gPassBuilder = rendergraph_add_renderpass(&rg, u8"GPass");
 
 	renderpass_add_color_attachment(&gPassBuilder, gbuffer, CGPU_LOAD_ACTION_CLEAR, 0, CGPU_STORE_ACTION_STORE);
+	struct GBufferPassData
+	{
+		Application* app;
+	};
+	GBufferPassData* passdata;
 	renderpass_set_executable(&gPassBuilder, [](RenderPassEncoder* encoder, void* userdata)
 		{
-			Application& app = *(Application*)userdata;
-			draw_procedure(encoder, app.shader, CGPU_PRIM_TOPO_TRI_LIST, 3);
-		}, app);
+			Application* app = ((GBufferPassData*)userdata)->app;
+			draw_procedure(encoder, app->shader, CGPU_PRIM_TOPO_TRI_LIST, 3);
+		}, sizeof(GBufferPassData), (void**)&passdata);
+	passdata->app = app;
 
 	auto passBuilder = rendergraph_add_renderpass(&rg, u8"Main Pass");
 	uint32_t color = 0xffffffff;
@@ -112,14 +118,19 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 	renderpass_sample(&passBuilder, gbuffer);
 	app->gbuffer = gbuffer;
 
+	struct MainPassData
+	{
+		Application* app;
+	};
+	MainPassData* passdata2;
 	renderpass_set_executable(&passBuilder, [](RenderPassEncoder* encoder, void* userdata)
 		{
-			Application& app = *(Application*)userdata;
-			set_global_texture_handle(encoder, app.gbuffer, 0, 0);
-			set_global_sampler(encoder, app.gbuffer_sampler, 0, 1);
-			draw_procedure(encoder, app.light_shader, CGPU_PRIM_TOPO_TRI_LIST, 3);
-		}, app);
-
+			Application* app = ((GBufferPassData*)userdata)->app;
+			set_global_texture_handle(encoder, app->gbuffer, 0, 0);
+			set_global_sampler(encoder, app->gbuffer_sampler, 0, 1);
+			draw_procedure(encoder, app->light_shader, CGPU_PRIM_TOPO_TRI_LIST, 3);
+		}, sizeof(MainPassData), (void**)&passdata2);
+	passdata2->app = app;
 }
 
 int main()
