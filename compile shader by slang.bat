@@ -6,3 +6,6 @@
 
 .\tools\slang\slangc examples\animation\object.hlsl -profile sm_5_0 -capability SPIRV_1_3 -entry vert -o examples\animation\object.vert.spv -O3 -emit-spirv-directly -matrix-layout-row-major
 .\tools\slang\slangc examples\animation\object.hlsl -profile sm_5_0 -capability SPIRV_1_3 -entry frag -o examples\animation\object.frag.spv -O3 -emit-spirv-directly -matrix-layout-row-major
+
+.\tools\slang\slangc examples\hdr\skybox.hlsl -profile sm_5_0 -capability SPIRV_1_3 -entry vert -o examples\hdr\skybox.vert.spv -O3 -emit-spirv-directly -matrix-layout-row-major
+.\tools\slang\slangc examples\hdr\skybox.hlsl -profile sm_5_0 -capability SPIRV_1_3 -entry frag -o examples\hdr\skybox.frag.spv -O3 -emit-spirv-directly -matrix-layout-row-major
