@@ -47,7 +47,6 @@ struct Application
 	HGEGraphics::Shader* shader;
 	CGPUSamplerId texture_sampler = CGPU_NULLPTR;
 	HGEGraphics::Texture* color_map;
-	HGEGraphics::Texture* cubemap;
 	HGEGraphics::Mesh* mesh1;
 	HGEGraphics::Mesh* mesh2;
 	HGEGraphics::Mesh* mesh3;
@@ -94,7 +93,6 @@ void _init_resource(Application& app)
 	app.texture_sampler = cgpu_create_sampler(app.device->device, &texture_sampler_desc);
 
 	app.color_map = oval_load_texture(app.device, u8"media/textures/TilesGray512.ktx", true);
-	app.cubemap = oval_load_texture(app.device, u8"media/textures/uffizi_cube.ktx", true);
 
 	app.mesh1 = oval_load_mesh(app.device, u8"media/models/PenroseStairs-Top.obj");
 	app.mesh2 = oval_load_mesh(app.device, u8"media/models/PenroseStairs-Bottom.obj");
@@ -105,9 +103,6 @@ void _free_resource(Application& app)
 {
 	free_texture(app.color_map);
 	app.color_map = nullptr;
-
-	free_texture(app.cubemap);
-	app.cubemap = nullptr;
 
 	free_mesh(app.mesh1);
 	app.mesh1 = nullptr;

@@ -4,14 +4,18 @@
 struct Application
 {
 	oval_device_t* device;
+	HGEGraphics::Texture* cubemap;
 };
 
 void _init_resource(Application& app)
 {
+	app.cubemap = oval_load_texture(app.device, u8"media/textures/uffizi_cube.ktx", true);
 }
 
 void _free_resource(Application& app)
 {
+	free_texture(app.cubemap);
+	app.cubemap = nullptr;
 }
 
 void _init_world(Application& app)
