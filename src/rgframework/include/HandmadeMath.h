@@ -1816,12 +1816,12 @@ static inline HMM_Mat4 HMM_Orthographic_LH_RO(float Left, float Right, float Bot
 
     Result.Elements[0][0] = 2.0f / (Right - Left);
     Result.Elements[1][1] = 2.0f / (Top - Bottom);
-    Result.Elements[2][2] = 1.0f / (Near - Far);
+    Result.Elements[2][2] = Near / (Near - Far);
     Result.Elements[3][3] = 1.0f;
 
     Result.Elements[3][0] = (Left + Right) / (Left - Right);
     Result.Elements[3][1] = (Bottom + Top) / (Bottom - Top);
-    Result.Elements[3][2] = -(Far) / (Near - Far);
+    Result.Elements[3][2] = -(Near * Far) / (Near - Far);
 
     return Result;
 }
@@ -1838,10 +1838,10 @@ static inline HMM_Mat4 HMM_Orthographic2_LH_RO(float size, float aspect, float N
 
     Result.Elements[0][0] = 2.0f / (2 * size * aspect);
     Result.Elements[1][1] = 2.0f / (2 * size);
-    Result.Elements[2][2] = 1.0f / (Near - Far);
+    Result.Elements[2][2] = Near / (Near - Far);
     Result.Elements[3][3] = 1.0f;
 
-    Result.Elements[3][2] = -(Far) / (Near - Far);
+    Result.Elements[3][2] = -(Near * Far) / (Near - Far);
 
     return Result;
 }
@@ -1926,6 +1926,24 @@ static inline HMM_Mat4 HMM_Perspective_LH_ZO(float FOV, float AspectRatio, float
     HMM_Mat4 Result = HMM_Perspective_RH_ZO(FOV, AspectRatio, Near, Far);
     Result.Elements[2][2] = -Result.Elements[2][2];
     Result.Elements[2][3] = -Result.Elements[2][3];
+
+    return Result;
+}
+
+COVERAGE(HMM_Perspective_LH_RO, 1)
+static inline HMM_Mat4 HMM_Perspective_LH_RO(float FOV, float AspectRatio, float Near, float Far)
+{
+    HMM_Mat4 Result = { 0 };
+
+    // See https://www.khronos.org/registry/OpenGL-Refpages/gl2.1/xhtml/gluPerspective.xml
+
+    float Cotangent = 1.0f / HMM_TanF(FOV / 2.0f);
+    Result.Elements[0][0] = Cotangent / AspectRatio;
+    Result.Elements[1][1] = Cotangent;
+    Result.Elements[2][3] = 1.0f;
+
+    Result.Elements[2][2] = Near / (Near - Far);
+    Result.Elements[3][2] = -(Near * Far) / (Near - Far);
 
     return Result;
 }
@@ -2737,10 +2755,7 @@ static inline HMM_Quat HMM_QFromEuler_YXZ(float x, float y, float z)
 
 static inline HMM_Mat4 HMM_M4FromEuler_YXZ(float x, float y, float z)
 {
-    HMM_Mat4 qx = HMM_Rotate_LH(x, HMM_V3_Right_LH);
-    HMM_Mat4 qy = HMM_Rotate_LH(y, HMM_V3_Up);
-    HMM_Mat4 qz = HMM_Rotate_LH(z, HMM_V3_Forward);
-    return HMM_MulM4(HMM_MulM4(qy, qx), qz);
+    return HMM_QToM4(HMM_QFromEuler_YXZ(x, y, z));
 }
 
 COVERAGE(HMM_RotateV2, 1)
