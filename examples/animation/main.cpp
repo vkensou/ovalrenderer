@@ -50,7 +50,6 @@ struct Application
 	HGEGraphics::Mesh* mesh1;
 	HGEGraphics::Mesh* mesh2;
 	HGEGraphics::Mesh* mesh3;
-	HGEGraphics::buffer_handle_t ubo_handle;
 	std::array<ObjectData, 5> objects;
 	std::array<BallData, 3> balls;
 	std::array<HGEGraphics::Mesh*, 5> meshs;
@@ -254,7 +253,6 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 	Application* app = (Application*)device->descriptor.userdata;
 
 	auto ubo_handle = rendergraph_declare_buffer(&rg);
-	app->ubo_handle = ubo_handle;
 	rg_buffer_set_size(&rg, ubo_handle, app->objects.size() * sizeof(ObjectData));
 	rg_buffer_set_type(&rg, ubo_handle, CGPU_RESOURCE_TYPE_UNIFORM_BUFFER);
 	rg_buffer_set_usage(&rg, ubo_handle, ECGPUMemoryUsage::CGPU_MEM_USAGE_GPU_ONLY);
