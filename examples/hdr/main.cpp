@@ -231,9 +231,9 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 			set_global_buffer(encoder, resolved_passdata->object_ubo_handle, 0, 2);
 			//draw(encoder, app.unlit_shader, app.quad);
 
-			set_global_texture(encoder, app.colormap, 0, 0);
-			set_global_sampler(encoder, app.cubemap_sampler, 0, 1);
-			set_global_buffer(encoder, resolved_passdata->hdr_ubo_handle, 0, 2);
+			set_global_buffer(encoder, resolved_passdata->hdr_ubo_handle, 0, 0);
+			set_global_texture(encoder, app.colormap, 0, 1);
+			set_global_sampler(encoder, app.cubemap_sampler, 0, 2);
 			set_global_texture(encoder, app.cubemap, 0, 3);
 			draw(encoder, app.hdr_shader, app.sphere);
 		}, sizeof(MainPassPassData), (void**)&passdata);

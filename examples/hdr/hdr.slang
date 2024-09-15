@@ -9,7 +9,7 @@ struct ObjectData
     float4 albedo;
 };
 
-[[vk::binding(2, 0)]]
+[[vk::binding(0, 0)]]
 ConstantBuffer<ObjectData> objectData;
 
 struct VSInput
@@ -38,9 +38,9 @@ VSOutput vert(VSInput input)
     return output;
 }
 
-[[vk::binding(0, 0)]]
-Texture2D colorMap;
 [[vk::binding(1, 0)]]
+Texture2D colorMap;
+[[vk::binding(2, 0)]]
 SamplerState colorMapSampler;
 [[vk::binding(3, 0)]]
 TextureCube cubemap;
