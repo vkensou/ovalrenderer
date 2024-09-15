@@ -219,6 +219,7 @@ namespace HGEGraphics
 	resource_handle_t rendergraph_import_texture(rendergraph_t* self, Texture* imported);
 	resource_handle_t rendergraph_import_backbuffer(rendergraph_t* self, Backbuffer* imported);
 	buffer_handle_t rendergraph_declare_buffer(rendergraph_t* self);
+	buffer_handle_t rendergraph_declare_uniform_buffer_quick(rendergraph_t* self, uint32_t size, void* data);
 	resource_handle_t rendergraph_declare_texture_subresource(rendergraph_t* self, resource_handle_t parent, uint8_t mipmap, uint8_t slice);
 	uint32_t rendergraph_add_edge(rendergraph_t* self, uint32_t from, uint32_t to, ECGPUResourceState usage);
 

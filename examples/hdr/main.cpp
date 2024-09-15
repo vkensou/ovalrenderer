@@ -179,23 +179,9 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 
 	Application* app = (Application*)device->descriptor.userdata;
 
-	auto skybox_ubo_handle = rendergraph_declare_buffer(&rg);
-	rg_buffer_set_size(&rg, skybox_ubo_handle, sizeof(SkyboxData));
-	rg_buffer_set_type(&rg, skybox_ubo_handle, CGPU_RESOURCE_TYPE_UNIFORM_BUFFER);
-	rg_buffer_set_usage(&rg, skybox_ubo_handle, ECGPUMemoryUsage::CGPU_MEM_USAGE_GPU_ONLY);
-	rendergraph_add_uploadbufferpass_ex(&rg, u8"upload ubo", skybox_ubo_handle, sizeof(SkyboxData), 0, &app->skybox_data, nullptr, 0, nullptr);
-
-	auto object_ubo_handle = rendergraph_declare_buffer(&rg);
-	rg_buffer_set_size(&rg, object_ubo_handle, sizeof(UnlitObjectData));
-	rg_buffer_set_type(&rg, object_ubo_handle, CGPU_RESOURCE_TYPE_UNIFORM_BUFFER);
-	rg_buffer_set_usage(&rg, object_ubo_handle, ECGPUMemoryUsage::CGPU_MEM_USAGE_GPU_ONLY);
-	rendergraph_add_uploadbufferpass_ex(&rg, u8"upload ubo", object_ubo_handle, sizeof(UnlitObjectData), 0, &app->object_data, nullptr, 0, nullptr);
-
-	auto hdr_ubo_handle = rendergraph_declare_buffer(&rg);
-	rg_buffer_set_size(&rg, hdr_ubo_handle, sizeof(HDRObjectData));
-	rg_buffer_set_type(&rg, hdr_ubo_handle, CGPU_RESOURCE_TYPE_UNIFORM_BUFFER);
-	rg_buffer_set_usage(&rg, hdr_ubo_handle, ECGPUMemoryUsage::CGPU_MEM_USAGE_GPU_ONLY);
-	rendergraph_add_uploadbufferpass_ex(&rg, u8"upload ubo", hdr_ubo_handle, sizeof(HDRObjectData), 0, &app->hdr_data, nullptr, 0, nullptr);
+	auto skybox_ubo_handle = rendergraph_declare_uniform_buffer_quick(&rg, sizeof(SkyboxData), &app->skybox_data);
+	auto object_ubo_handle = rendergraph_declare_uniform_buffer_quick(&rg, sizeof(UnlitObjectData), &app->object_data);
+	auto hdr_ubo_handle = rendergraph_declare_uniform_buffer_quick(&rg, sizeof(HDRObjectData), &app->hdr_data);
 
 	auto depth_handle = rendergraph_declare_texture(&rg);
 	rg_texture_set_extent(&rg, depth_handle, rg_texture_get_width(&rg, rg_back_buffer), rg_texture_get_height(&rg, rg_back_buffer));

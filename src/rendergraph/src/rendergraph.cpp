@@ -221,6 +221,40 @@ namespace HGEGraphics
 		resource.memoryUsage = CGPU_MEM_USAGE_UNKNOWN;
 		return buffer_handle_t(self->resources.size() - 1);
 	}
+	buffer_handle_t rendergraph_declare_uniform_buffer_quick(rendergraph_t* self, uint32_t size, void* data)
+	{
+		auto nextPowerOfTwo = [](uint32_t n) -> uint32_t
+			{
+				if (n == 0)
+				{
+					return 1;
+				}
+
+				// Decrement n to handle the exact power of 2 case.
+				n--;
+
+				// Set all bits after the highest set bit
+				n |= n >> 1;
+				n |= n >> 2;
+				n |= n >> 4;
+				n |= n >> 8;
+				n |= n >> 16;
+
+				// Increment n to get next power of 2
+				return n + 1;
+			};
+
+		self->resources.push_back(ResourceNode());
+		auto& resource = self->resources.back();
+		resource.resourceType = ResourceType::Buffer;
+		resource.memoryUsage = CGPU_MEM_USAGE_UNKNOWN;
+		resource.size = nextPowerOfTwo(size);
+		resource.bufferType = CGPU_RESOURCE_TYPE_UNIFORM_BUFFER;
+		resource.memoryUsage = ECGPUMemoryUsage::CGPU_MEM_USAGE_GPU_ONLY;
+		auto ubo_handle = buffer_handle_t(self->resources.size() - 1);
+		rendergraph_add_uploadbufferpass_ex(self, u8"quick upload ubo", ubo_handle, resource.size, 0, data, nullptr, 0, nullptr);
+		return ubo_handle;
+	}
 	resource_handle_t rendergraph_declare_texture_subresource(rendergraph_t* self, resource_handle_t parent, uint8_t mipmap, uint8_t slice)
 	{
 		assert(parent.index().has_value());
