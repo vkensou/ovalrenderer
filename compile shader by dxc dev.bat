@@ -9,3 +9,6 @@
 
 .\tools\dxc\dxc examples\hdr\skybox.hlsl -spirv -T vs_6_0 -E vert -fspv-entrypoint-name=main -Fo examples\hdr\skybox.vert.spv -Od -Zi -Zpr
 .\tools\dxc\dxc examples\hdr\skybox.hlsl -spirv -T ps_6_0 -E frag -fspv-entrypoint-name=main -Fo examples\hdr\skybox.frag.spv -Od -Zi -Zpr
+
+.\tools\dxc\dxc examples\hdr\unlit.hlsl -spirv -T vs_6_0 -E vert -fspv-entrypoint-name=main -Fo examples\hdr\unlit.vert.spv -Od -Zi -Zpr
+.\tools\dxc\dxc examples\hdr\unlit.hlsl -spirv -T ps_6_0 -E frag -fspv-entrypoint-name=main -Fo examples\hdr\unlit.frag.spv -Od -Zi -Zpr
