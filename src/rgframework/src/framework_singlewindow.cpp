@@ -262,7 +262,7 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 	int w, h;
 	SDL_GetWindowSize(device_cgpu->window, &w, &h);
 
-	ECGPUFormat swapchainFormat = CGPU_FORMAT_R8G8B8A8_UNORM;
+	ECGPUFormat swapchainFormat = CGPU_FORMAT_R8G8B8A8_SRGB;
 	CGPUSwapChainDescriptor descriptor = {
 		.present_queues = &device_cgpu->present_queue,
 		.present_queues_count = 1,
@@ -695,7 +695,7 @@ bool on_resize(oval_cgpu_device_t* D)
 	if (w == 0 || h == 0)
 		return false;
 
-	ECGPUFormat swapchainFormat = CGPU_FORMAT_R8G8B8A8_UNORM;
+	ECGPUFormat swapchainFormat = CGPU_FORMAT_R8G8B8A8_SRGB;
 	CGPUSwapChainDescriptor descriptor = {
 		.present_queues = &D->present_queue,
 		.present_queues_count = 1,
