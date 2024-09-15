@@ -14,6 +14,15 @@ struct UnlitObjectData
 	HMM_Mat4 vpMatrix;
 };
 
+struct HDRObjectData
+{
+	HMM_Mat4 wMatrix;
+	HMM_Mat4 vpMatrix;
+	HMM_Vec4 lightDir;
+	HMM_Vec4 viewPos;
+	HMM_Vec4 albedo;
+};
+
 struct Application
 {
 	oval_device_t* device;
@@ -22,10 +31,14 @@ struct Application
 	CGPUSamplerId cubemap_sampler = CGPU_NULLPTR;
 	HGEGraphics::Shader* skybox_shader;
 	HGEGraphics::Shader* unlit_shader;
+	HGEGraphics::Shader* hdr_shader;
 	SkyboxData skybox_data;
 	UnlitObjectData object_data;
+	HDRObjectData hdr_data;
 	clock_t time;
 	HGEGraphics::Mesh* quad;
+	HGEGraphics::Mesh* sphere;
+	float lightDirEulerX, lightDirEulerY;
 };
 
 void _init_resource(Application& app)
@@ -52,6 +65,7 @@ void _init_resource(Application& app)
 	};
 	app.skybox_shader = HGEGraphics::create_shader(app.device->device, "hdr/skybox.vert.spv", "hdr/skybox.frag.spv", blend_desc, depth_desc, rasterizer_state);
 	app.unlit_shader = HGEGraphics::create_shader(app.device->device, "hdr/unlit.vert.spv", "hdr/unlit.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.hdr_shader = HGEGraphics::create_shader(app.device->device, "hdr/hdr.vert.spv", "hdr/hdr.frag.spv", blend_desc, depth_desc, rasterizer_state);
 
 	app.cubemap = oval_load_texture(app.device, u8"media/textures/uffizi_cube.ktx", true);
 	app.colormap = oval_load_texture(app.device, u8"media/textures/TilesGray512.ktx", true);
@@ -69,12 +83,16 @@ void _init_resource(Application& app)
 	app.cubemap_sampler = cgpu_create_sampler(app.device->device, &cubemap_sampler_desc);
 
 	app.quad = oval_load_mesh(app.device, u8"media/models/Quad.obj");
+	app.sphere = oval_load_mesh(app.device, u8"media/models/Sphere.obj");
 }
 
 void _free_resource(Application& app)
 {
 	free_mesh(app.quad);
 	app.quad = nullptr;
+
+	free_mesh(app.sphere);
+	app.sphere = nullptr;
 
 	free_texture(app.cubemap);
 	app.cubemap = nullptr;
@@ -90,11 +108,17 @@ void _free_resource(Application& app)
 
 	free_shader(app.unlit_shader);
 	app.unlit_shader = nullptr;
+
+	free_shader(app.hdr_shader);
+	app.hdr_shader = nullptr;
 }
 
 void _init_world(Application& app)
 {
 	app.time = clock();
+	app.hdr_data.albedo = HMM_V4(1, 1, 1, 0.5);
+	app.lightDirEulerX = -50;
+	app.lightDirEulerY = 150;
 }
 
 void on_update(oval_device_t* device)
@@ -104,7 +128,10 @@ void on_update(oval_device_t* device)
 	auto now = clock();
 	auto duration = (double)(now - app->time) / CLOCKS_PER_SEC;
 
-	auto cameraMat = HMM_Translate(HMM_V3(0, 0, 0)) * HMM_M4FromEuler_YXZ(0, duration * 10 * HMM_DegToRad, 0);
+	auto cameraParentMat = HMM_QToM4(HMM_QFromEuler_YXZ(HMM_AngleDeg(0), HMM_AngleDeg(24), 0));
+	auto cameraLocalMat = HMM_Translate(HMM_V3(0, 0, -1));
+
+	auto cameraMat = cameraParentMat * cameraLocalMat;
 
 	auto eye = HMM_M4GetTranslate(cameraMat);
 	auto forward = HMM_M4GetForward(cameraMat);
@@ -122,16 +149,28 @@ void on_update(oval_device_t* device)
 	app->skybox_data.vpMatrixI = vpMatI;
 	app->skybox_data.param = HMM_V4(eye.X, eye.Y, eye.Z, far);
 
-	auto objectMat = HMM_Translate(HMM_V3(0, 0, 1));
+	auto objectMat = HMM_Translate(HMM_V3(0, 0, 0));
 
 	app->object_data.wMatrix = objectMat;
 	app->object_data.vpMatrix = vpMat;
+
+	auto lightRot = HMM_QFromEuler_YXZ(HMM_AngleDeg(app->lightDirEulerX), HMM_AngleDeg(app->lightDirEulerY), 0);
+	auto lightDir = HMM_RotateV3Q(HMM_V3_Forward, lightRot);
+
+	app->hdr_data.wMatrix = objectMat;
+	app->hdr_data.vpMatrix = vpMat;
+	app->hdr_data.lightDir = HMM_V4V(lightDir, 0);
+	app->hdr_data.viewPos = HMM_V4V(eye, 0);
 }
 
 void on_imgui(oval_device_t* device)
 {
+	Application* app = (Application*)device->descriptor.userdata;
+
 	if (ImGui::Button("Capture"))
 		oval_render_debug_capture(device);
+	ImGui::SliderFloat("Smoothness", &app->hdr_data.albedo.W, 0, 1);
+	ImGui::SliderFloat2("Light Dir", &app->lightDirEulerX, -180, 180);
 }
 
 void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::resource_handle_t rg_back_buffer)
@@ -152,6 +191,12 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 	rg_buffer_set_usage(&rg, object_ubo_handle, ECGPUMemoryUsage::CGPU_MEM_USAGE_GPU_ONLY);
 	rendergraph_add_uploadbufferpass_ex(&rg, u8"upload ubo", object_ubo_handle, sizeof(UnlitObjectData), 0, &app->object_data, nullptr, 0, nullptr);
 
+	auto hdr_ubo_handle = rendergraph_declare_buffer(&rg);
+	rg_buffer_set_size(&rg, hdr_ubo_handle, sizeof(HDRObjectData));
+	rg_buffer_set_type(&rg, hdr_ubo_handle, CGPU_RESOURCE_TYPE_UNIFORM_BUFFER);
+	rg_buffer_set_usage(&rg, hdr_ubo_handle, ECGPUMemoryUsage::CGPU_MEM_USAGE_GPU_ONLY);
+	rendergraph_add_uploadbufferpass_ex(&rg, u8"upload ubo", hdr_ubo_handle, sizeof(HDRObjectData), 0, &app->hdr_data, nullptr, 0, nullptr);
+
 	auto depth_handle = rendergraph_declare_texture(&rg);
 	rg_texture_set_extent(&rg, depth_handle, rg_texture_get_width(&rg, rg_back_buffer), rg_texture_get_height(&rg, rg_back_buffer));
 	rg_texture_set_depth_format(&rg, depth_handle, DepthBits::D24, true);
@@ -162,12 +207,14 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 	renderpass_add_depth_attachment(&passBuilder, depth_handle, CGPU_LOAD_ACTION_CLEAR, 0, CGPU_STORE_ACTION_DISCARD, CGPU_LOAD_ACTION_CLEAR, 0, CGPU_STORE_ACTION_DISCARD);
 	renderpass_use_buffer(&passBuilder, skybox_ubo_handle);
 	renderpass_use_buffer(&passBuilder, object_ubo_handle);
+	renderpass_use_buffer(&passBuilder, hdr_ubo_handle);
 
 	struct MainPassPassData
 	{
 		Application* app;
 		HGEGraphics::buffer_handle_t skybox_ubo_handle;
 		HGEGraphics::buffer_handle_t object_ubo_handle;
+		HGEGraphics::buffer_handle_t hdr_ubo_handle;
 	};
 	MainPassPassData* passdata;
 	renderpass_set_executable(&passBuilder, [](RenderPassEncoder* encoder, void* passdata)
@@ -179,14 +226,21 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 			set_global_buffer(encoder, resolved_passdata->skybox_ubo_handle, 0, 2);
 			draw_procedure(encoder, app.skybox_shader, CGPU_PRIM_TOPO_TRI_LIST, 3);
 
-			//set_global_texture(encoder, app.colormap, 0, 0);
-			//set_global_sampler(encoder, app.cubemap_sampler, 0, 1);
-			//set_global_buffer(encoder, resolved_passdata->object_ubo_handle, 0, 2);
+			set_global_texture(encoder, app.colormap, 0, 0);
+			set_global_sampler(encoder, app.cubemap_sampler, 0, 1);
+			set_global_buffer(encoder, resolved_passdata->object_ubo_handle, 0, 2);
 			//draw(encoder, app.unlit_shader, app.quad);
+
+			set_global_texture(encoder, app.colormap, 0, 0);
+			set_global_sampler(encoder, app.cubemap_sampler, 0, 1);
+			set_global_buffer(encoder, resolved_passdata->hdr_ubo_handle, 0, 2);
+			set_global_texture(encoder, app.cubemap, 0, 3);
+			draw(encoder, app.hdr_shader, app.sphere);
 		}, sizeof(MainPassPassData), (void**)&passdata);
 	passdata->app = app;
 	passdata->skybox_ubo_handle = skybox_ubo_handle;
 	passdata->object_ubo_handle = object_ubo_handle;
+	passdata->hdr_ubo_handle = hdr_ubo_handle;
 }
 
 int main()
