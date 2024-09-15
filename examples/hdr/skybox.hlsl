@@ -4,12 +4,6 @@ static const float4 positions[3] = {
 	float4(-1.0,  3.0, 0, 1)
 };
 
-static const float2 uv0[3] = {
-	float2(0.0, 1.0),
-	float2(2.0, 1.0),
-	float2(0.0, -1.0),
-};
-
 struct VSInput
 {
     uint vertexId : SV_VERTEXID;
@@ -18,16 +12,24 @@ struct VSInput
 struct VSOutput
 {
 	float4 Pos : SV_POSITION;
-	[[vk::location(0)]]
-	float2 UV0 : TEXCOORD0;
+	float4 viewRay : TEXCOORD0;
 };
+
+struct UBO
+{
+    float4x4 vpMatrixI;
+    float4 param;
+};
+
+[[vk::binding(2, 0)]]
+ConstantBuffer<UBO> ubo;
 
 [shader("vertex")]
 VSOutput vert(VSInput input)
 {
 	VSOutput output = (VSOutput)0;
 	output.Pos = positions[input.vertexId];
-	output.UV0 = uv0[input.vertexId];
+    output.viewRay = mul(float4(output.Pos.x, output.Pos.y, 0, 1) * ubo.param.w, ubo.vpMatrixI);
 	return output;
 }
 
@@ -39,6 +41,6 @@ SamplerState cubemapSampler : register(s0);
 [shader("pixel")]
 float4 frag(VSOutput input) : SV_TARGET
 {
-    return 0.5;
-	return cubemap.Sample(cubemapSampler, float3(input.UV0, 0));
+    float3 texCoord = normalize(ubo.param.xyz - input.viewRay.xyz);
+    return cubemap.Sample(cubemapSampler, texCoord);
 }
