@@ -728,6 +728,8 @@ void oval_runloop(oval_device_t* device)
 
 	while (quit == false)
 	{
+		_sleep(0);
+
 		while (SDL_PollEvent(&e))
 		{
 			ImGui_ImplSDL2_ProcessEvent(&e);
@@ -754,8 +756,12 @@ void oval_runloop(oval_device_t* device)
 		if (requestResize)
 			continue;
 
+		bool rdc_capturing = false;
 		if (D->rdc && D->rdc_capture)
+		{
 			D->rdc->StartFrameCapture(nullptr, nullptr);
+			rdc_capturing = true;
+		}
 
 		auto& cur_frame_data = D->frameDatas[D->current_frame_index];
 		cgpu_wait_fences(&cur_frame_data.inflightFence, 1);
@@ -821,16 +827,18 @@ void oval_runloop(oval_device_t* device)
 
 		D->current_frame_index = (D->current_frame_index + 1) % D->swapchain->buffer_count;
 
-		if (D->rdc && D->rdc_capture)
+		if (rdc_capturing)
 		{
 			D->rdc->EndFrameCapture(nullptr, nullptr);
-
+			D->rdc_capture = false;
+		}
+		if (D->rdc && D->rdc_capture)
+		{
 			if (!D->rdc->IsRemoteAccessConnected())
 			{
 				D->rdc->LaunchReplayUI(1, "");
 			}
 		}
-		D->rdc_capture = false;
 	}
 
 	cgpu_wait_queue_idle(D->gfx_queue);
