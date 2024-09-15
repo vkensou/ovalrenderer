@@ -29,7 +29,7 @@ VSOutput vert(VSInput input)
 {
 	VSOutput output = (VSOutput)0;
 	output.Pos = positions[input.vertexId];
-    output.viewRay = mul(float4(output.Pos.x, output.Pos.y, 0, 1) * ubo.param.w, ubo.vpMatrixI);
+    output.viewRay = mul(float4(-output.Pos.x, output.Pos.y, 0, 1) * ubo.param.w, ubo.vpMatrixI);
 	return output;
 }
 

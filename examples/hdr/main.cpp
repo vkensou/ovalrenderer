@@ -104,7 +104,7 @@ void on_update(oval_device_t* device)
 	auto now = clock();
 	auto duration = (double)(now - app->time) / CLOCKS_PER_SEC;
 
-	auto cameraMat = HMM_Translate(HMM_V3(0, 0, 0)) * HMM_M4FromEuler_YXZ(0, 0 * HMM_DegToRad, 0);
+	auto cameraMat = HMM_Translate(HMM_V3(0, 0, 0)) * HMM_M4FromEuler_YXZ(0, duration * 10 * HMM_DegToRad, 0);
 
 	auto eye = HMM_M4GetTranslate(cameraMat);
 	auto forward = HMM_M4GetForward(cameraMat);
@@ -118,11 +118,6 @@ void on_update(oval_device_t* device)
 	auto projMat = HMM_Perspective_LH_RO(fov * HMM_DegToRad, aspect, near, far);
 	auto vpMat = projMat * viewMat;
 	auto vpMatI = HMM_InvGeneral(vpMat);
-	auto pI = HMM_InvGeneral(projMat);
-	auto p1 = HMM_V4(-1 * far, -1 * far, 0, far);
-	auto q1 = HMM_Mul(pI, p1);
-
-	float t2 = tanf(fov / 2);
 
 	app->skybox_data.vpMatrixI = vpMatI;
 	app->skybox_data.param = HMM_V4(eye.X, eye.Y, eye.Z, far);
