@@ -81,6 +81,38 @@ namespace HGEGraphics
 		delete shader;
 	}
 
+	ComputeShader* create_compute_shader(CGPUDeviceId device, const std::string& compPath)
+	{
+		auto compShaderCode = readFile(compPath);
+		return create_compute_shader(device, reinterpret_cast<const uint8_t*>(compShaderCode.data()), compShaderCode.size());
+	}
+
+	ComputeShader* create_compute_shader(CGPUDeviceId device, const uint8_t* comp_data, uint32_t comp_length)
+	{
+		CGPUShaderLibraryDescriptor cs_desc = {
+			.name = u8"ComputeShaderLibrary",
+			.code = reinterpret_cast<const uint32_t*>(comp_data),
+			.code_size = (uint32_t)comp_length,
+			.stage = CGPU_SHADER_STAGE_COMPUTE,
+		};
+		CGPUShaderLibraryId comp_shader = cgpu_create_shader_library(device, &cs_desc);
+
+		CGPUShaderEntryDescriptor ppl_shaders[1];
+		ppl_shaders[0].stage = CGPU_SHADER_STAGE_COMPUTE;
+		ppl_shaders[0].entry = u8"main";
+		ppl_shaders[0].library = comp_shader;
+
+		auto shader = new ComputeShader();
+		shader->cs = ppl_shaders[0];
+		return shader;
+	}
+
+	void free_cmopute_shader(ComputeShader* shader)
+	{
+		cgpu_free_shader_library(shader->cs.library);
+		delete shader;
+	}
+
 	Buffer* create_buffer(CGPUDeviceId device, const CGPUBufferDescriptor& desc)
 	{
 		auto buffer = new Buffer();

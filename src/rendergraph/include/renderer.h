@@ -33,6 +33,15 @@ namespace HGEGraphics
 	Shader* create_shader(CGPUDeviceId device, const uint8_t* vert_data, uint32_t vert_length, const uint8_t* frag_data, uint32_t frag_length, const CGPUBlendStateDescriptor& blend_desc, const CGPUDepthStateDesc& depth_desc, const CGPURasterizerStateDescriptor& rasterizer_state);
 	void free_shader(Shader* shader);
 
+	struct ComputeShader
+	{
+		CGPUShaderEntryDescriptor cs;
+	};
+
+	ComputeShader* create_compute_shader(CGPUDeviceId device, const std::string& compPath);
+	ComputeShader* create_compute_shader(CGPUDeviceId device, const uint8_t* comp_data, uint32_t comp_length);
+	void free_cmopute_shader(ComputeShader* shader);
+
 	class resource_handle_t
 	{
 	public:
