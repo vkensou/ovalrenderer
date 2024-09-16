@@ -72,7 +72,8 @@ namespace HGEGraphics
 		auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
 		const uint64_t xBlocksCount = mipedSize(usedTextureNode->width, mipmap) / FormatUtil_WidthOfBlock(usedTextureNode->format);
 		const uint64_t yBlocksCount = mipedSize(usedTextureNode->height, mipmap) / FormatUtil_HeightOfBlock(usedTextureNode->format);
-		const uint64_t bufferSize = xBlocksCount * yBlocksCount * FormatUtil_BitSizeOfBlock(usedTextureNode->format) / sizeof(uint8_t);
+		const uint64_t zBlocksCount = mipedSize(usedTextureNode->depth, mipmap);
+		const uint64_t bufferSize = xBlocksCount * yBlocksCount * zBlocksCount * FormatUtil_BitSizeOfBlock(usedTextureNode->format) / sizeof(uint8_t);
 		assert(bufferSize >= size + offset);
 		rg_buffer_set_size(self, staging_buffer, bufferSize);
 		rg_buffer_set_type(self, staging_buffer, CGPU_RESOURCE_TYPE_NONE);
@@ -174,6 +175,7 @@ namespace HGEGraphics
 		auto& resourceNode = self->resources.back();
 		resourceNode.width = 0;
 		resourceNode.height = 0;
+		resourceNode.depth = 0;
 		resourceNode.mipCount = 1;
 		resourceNode.arraySize = 1;
 		resourceNode.mipLevel = 0;
@@ -188,6 +190,7 @@ namespace HGEGraphics
 		resourceNode.manageType = ManageType::Imported;
 		resourceNode.width = imported->handle->info->width;
 		resourceNode.height = imported->handle->info->height;
+		resourceNode.depth = imported->handle->info->depth;
 		resourceNode.format = imported->handle->info->format;
 		resourceNode.mipCount = imported->handle->info->mip_levels;
 		resourceNode.arraySize = imported->handle->info->array_size_minus_one + 1;
@@ -205,6 +208,7 @@ namespace HGEGraphics
 		resourceNode.manageType = ManageType::Imported;
 		resourceNode.width = imported->texture.handle->info->width;
 		resourceNode.height = imported->texture.handle->info->height;
+		resourceNode.depth = imported->texture.handle->info->depth;
 		resourceNode.format = imported->texture.handle->info->format;
 		resourceNode.mipCount = imported->texture.handle->info->mip_levels;
 		resourceNode.arraySize = imported->texture.handle->info->array_size_minus_one + 1;
@@ -274,6 +278,7 @@ namespace HGEGraphics
 		resourceNode.manageType = ManageType::SubResource;
 		resourceNode.width = textureNode->width;
 		resourceNode.height = textureNode->height;
+		resourceNode.depth = textureNode->depth;
 		resourceNode.format = textureNode->format;
 		resourceNode.mipCount = textureNode->mipCount;
 		resourceNode.arraySize = textureNode->arraySize;
@@ -375,6 +380,7 @@ namespace HGEGraphics
 		assert(resourceNode.resourceType == ResourceType::Texture);
 		resourceNode.width = width;
 		resourceNode.height = height;
+		resourceNode.depth = depth;
 	}
 	void rg_texture_set_format(rendergraph_t* self, resource_handle_t texture, ECGPUFormat format)
 	{
@@ -425,6 +431,13 @@ namespace HGEGraphics
 		auto& resourceNode = self->resources[texture.index().value()];
 		assert(resourceNode.resourceType == ResourceType::Texture);
 		return resourceNode.height;
+	}
+	uint32_t rg_texture_get_depth(rendergraph_t* self, resource_handle_t texture)
+	{
+		assert(texture.index().has_value());
+		auto& resourceNode = self->resources[texture.index().value()];
+		assert(resourceNode.resourceType == ResourceType::Texture);
+		return resourceNode.depth;
 	}
 	ECGPUFormat rg_texture_get_format(rendergraph_t* self, resource_handle_t texture)
 	{

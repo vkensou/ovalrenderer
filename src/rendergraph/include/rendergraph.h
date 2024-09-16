@@ -77,6 +77,7 @@ namespace HGEGraphics
 		Buffer* buffer;
 		uint16_t width;
 		uint16_t height;
+		uint16_t depth;
 		ECGPUFormat format;
 		uint8_t mipCount;;
 		uint8_t arraySize;
@@ -185,6 +186,7 @@ namespace HGEGraphics
 	void rg_texture_set_depth_format(rendergraph_t* self, resource_handle_t texture, DepthBits depthBits, bool needStencil);
 	uint32_t rg_texture_get_width(rendergraph_t* self, resource_handle_t texture);
 	uint32_t rg_texture_get_height(rendergraph_t* self, resource_handle_t texture);
+	uint32_t rg_texture_get_depth(rendergraph_t* self, resource_handle_t texture);
 	ECGPUFormat rg_texture_get_format(rendergraph_t* self, resource_handle_t texture);
 
 	void rg_buffer_set_size(rendergraph_t* self, buffer_handle_t buffer, uint32_t size);

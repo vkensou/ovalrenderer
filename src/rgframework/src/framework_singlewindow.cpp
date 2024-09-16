@@ -523,7 +523,8 @@ uint64_t uploadTexture(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& r
 			auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
 			const uint64_t xBlocksCount = mipedSize(texture->handle->info->width, 0) / FormatUtil_WidthOfBlock(texture->handle->info->format);
 			const uint64_t yBlocksCount = mipedSize(texture->handle->info->height, 0) / FormatUtil_HeightOfBlock(texture->handle->info->format);
-			size = xBlocksCount * yBlocksCount * FormatUtil_BitSizeOfBlock(texture->handle->info->format) / 8;
+			const uint64_t zBlocksCount = mipedSize(texture->handle->info->depth, 0);
+			size = xBlocksCount * yBlocksCount * zBlocksCount * FormatUtil_BitSizeOfBlock(texture->handle->info->format) / 8;
 			rendergraph_add_uploadtexturepass_ex(&rg, u8"upload texture", texture_handle, 0, 0, size, 0, waited.loader, [](HGEGraphics::UploadEncoder* encoder, void* passdata){}, 0, nullptr);
 		}
 		else if (waited.loader_type == 1 && waited.ktxTexture)
