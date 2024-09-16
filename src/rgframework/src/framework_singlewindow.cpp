@@ -73,11 +73,15 @@ struct WaitUploadMesh
 	HGEGraphics::Mesh* mesh;
 	std::pmr::vector<TexturedVertex>* vertex_data;
 	std::pmr::vector<uint32_t>* index_data;
+	void* vertex_raw_data;
+	void* index_raw_data;
+	uint64_t vertex_data_size;
+	uint64_t index_data_size;
 };
 
 typedef struct oval_cgpu_device_t {
 	oval_cgpu_device_t(const oval_device_t& super, std::pmr::memory_resource* memory_resource)
-		: super(super), memory_resource(memory_resource), wait_upload_texture(memory_resource), wait_upload_mesh(memory_resource), delay_released_stbi_loader(memory_resource), delay_released_ktxTexture(memory_resource), delay_released_vertex_buffer(memory_resource), delay_released_index_buffer(memory_resource)
+		: super(super), memory_resource(memory_resource), wait_upload_texture(memory_resource), wait_upload_mesh(memory_resource), delay_released_stbi_loader(memory_resource), delay_released_ktxTexture(memory_resource), delay_released_vertex_buffer(memory_resource), delay_released_index_buffer(memory_resource), delay_freeed_raw_data(memory_resource)
 	{
 	}
 
@@ -118,6 +122,7 @@ typedef struct oval_cgpu_device_t {
 	std::pmr::vector<ktxTexture*> delay_released_ktxTexture;
 	std::pmr::vector<std::pmr::vector<TexturedVertex>*> delay_released_vertex_buffer;
 	std::pmr::vector<std::pmr::vector<uint32_t>*> delay_released_index_buffer;
+	std::pmr::vector<void*> delay_freeed_raw_data;
 
 	HGEGraphics::Texture* default_texture;
 } oval_cgpu_device_t;
@@ -570,51 +575,35 @@ void uploadResources(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg)
 
 		auto mesh_vertex_handle = rendergraph_declare_buffer(&rg);
 		rg_buffer_import(&rg, mesh_vertex_handle, waited.mesh->vertex_buffer);
-		if (waited.vertex_data)
+		if (waited.vertex_data || waited.vertex_raw_data)
 		{
-			uint64_t size = waited.vertex_data->size() * sizeof(TexturedVertex);
+			uint64_t size = waited.vertex_data_size;
 			uploaded += size;
-			struct UploadVertexPassData
-			{
-				std::pmr::vector<TexturedVertex>* vertex_data;
-			};
-			UploadVertexPassData* passdata;
-			rendergraph_add_uploadbufferpass_ex(&rg, u8"upload mesh vertex data", mesh_vertex_handle, size, 0, waited.vertex_data->data(), [](HGEGraphics::UploadEncoder* encoder, void* passdata)
-				{
-					UploadVertexPassData* resolved_passdata = (UploadVertexPassData*)passdata;
-					std::pmr::vector<TexturedVertex>* vertex_data = resolved_passdata->vertex_data;
-					vertex_data->clear();
-				}, sizeof(UploadVertexPassData), (void**)&passdata);
-			passdata->vertex_data = waited.vertex_data;
+			rendergraph_add_uploadbufferpass_ex(&rg, u8"upload mesh vertex data", mesh_vertex_handle, size, 0, waited.vertex_data ? waited.vertex_data->data() : waited.vertex_raw_data, nullptr, 0, nullptr);
 			uploaded_buffer_handle.push_back(mesh_vertex_handle);
 
-			device->delay_released_vertex_buffer.push_back(waited.vertex_data);
+			if (waited.vertex_data)
+				device->delay_released_vertex_buffer.push_back(waited.vertex_data);
+			if (waited.vertex_raw_data)
+				device->delay_freeed_raw_data.push_back(waited.vertex_raw_data);
 		}
 
-		if (waited.mesh->index_buffer)
+		if (waited.index_data || waited.index_raw_data)
 		{
-			auto mesh_index_handle= rendergraph_declare_buffer(&rg);
-			rg_buffer_import(&rg, mesh_index_handle, waited.mesh->index_buffer);
-			if (waited.index_data)
+			if (waited.mesh->index_buffer)
 			{
-				uint64_t size = waited.index_data->size() * sizeof(uint32_t);
+				auto mesh_index_handle= rendergraph_declare_buffer(&rg);
+				rg_buffer_import(&rg, mesh_index_handle, waited.mesh->index_buffer);
+				uint64_t size = waited.index_data_size;
 				uploaded += size;
-				struct UploadIndexPassData
-				{
-					std::pmr::vector<uint32_t>* index_data;
-				};
-				UploadIndexPassData* passdata;
-				rendergraph_add_uploadbufferpass_ex(&rg, u8"upload mesh index data", mesh_index_handle, size, 0, waited.index_data->data(), [](HGEGraphics::UploadEncoder* encoder, void* passdata)
-					{
-						UploadIndexPassData* resolved_passdata = (UploadIndexPassData*)passdata;
-						std::pmr::vector<uint32_t>* index_data = resolved_passdata->index_data;
-						index_data->clear();
-					}, sizeof(UploadIndexPassData), (void**)&passdata);
-				passdata->index_data = waited.index_data;
+				rendergraph_add_uploadbufferpass_ex(&rg, u8"upload mesh index data", mesh_index_handle, size, 0, waited.index_data ? waited.index_data->data() : waited.index_raw_data, nullptr, 0, nullptr);
 				uploaded_buffer_handle.push_back(mesh_index_handle);
-
-				device->delay_released_index_buffer.push_back(waited.index_data);
 			}
+
+			if (waited.index_data)
+				device->delay_released_index_buffer.push_back(waited.index_data);
+			if (waited.index_raw_data)
+				device->delay_freeed_raw_data.push_back(waited.index_raw_data);
 		}
 
 		waited.mesh->prepared = true;
@@ -647,6 +636,10 @@ void release_uploader_data(oval_cgpu_device_t* device)
 	for (auto loader : device->delay_released_index_buffer)
 		delete loader;
 	device->delay_released_index_buffer.clear();
+
+	for (auto raw_data : device->delay_freeed_raw_data)
+		free(raw_data);
+	device->delay_freeed_raw_data.clear();
 }
 
 void render(oval_cgpu_device_t* device, HGEGraphics::Backbuffer* backbuffer)
@@ -971,6 +964,7 @@ std::pair<ECGPUFormat, int> detectKtxTextureFormat(ktxTexture* ktxTexture)
 		switch (ktx1->glInternalformat)
 		{
 		case 0x1908:
+		case 0x8058:
 			return { CGPU_FORMAT_R8G8B8A8_SRGB, 4 };
 		case 0x881A:
 			return { CGPU_FORMAT_R16G16B16A16_SFLOAT, 8 };
@@ -1241,7 +1235,26 @@ HGEGraphics::Mesh* oval_load_mesh(oval_device_t* device, const char8_t* filepath
 	};
 	auto mesh = HGEGraphics::create_mesh(device->device, data->size(), (indices ? indices->size() : 0), CGPU_PRIM_TOPO_TRI_LIST, mesh_vertex_layout, (indices ? sizeof(uint32_t) : 0));
 
-	D->wait_upload_mesh.push({ mesh, data, indices });
+	D->wait_upload_mesh.push({ mesh, data, indices, nullptr, nullptr, mesh->vertices_count * mesh->vertex_stride, mesh->index_count * mesh->index_stride });
+
+	return mesh;
+}
+
+HGEGraphics::Mesh* oval_create_mesh_from_buffer(oval_device_t* device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, const uint8_t* vertex_data, const uint8_t* index_data)
+{
+	auto D = (oval_cgpu_device_t*)device;
+	auto mesh = HGEGraphics::create_mesh(device->device, vertex_count, index_count, prim_topology, vertex_layout, index_stride);
+
+	auto vertex_raw_data = malloc(vertex_count * mesh->vertex_stride);
+	memcpy(vertex_raw_data, vertex_data, vertex_count * mesh->vertex_stride);
+	void* index_raw_data = nullptr;
+	if (index_data)
+	{
+		index_raw_data = malloc(index_count * mesh->index_stride);
+		memcpy(index_raw_data, index_data, index_count * mesh->index_stride);
+	}
+
+	D->wait_upload_mesh.push({ mesh, nullptr, nullptr, vertex_raw_data, index_raw_data, mesh->vertices_count * mesh->vertex_stride, mesh->index_count * mesh->index_stride });
 
 	return mesh;
 }
