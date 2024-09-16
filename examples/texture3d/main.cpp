@@ -109,13 +109,24 @@ public:
 	}
 };
 
+struct ObjectData
+{
+	HMM_Mat4	wMatrix;
+	HMM_Mat4	vpMatrix;
+	HMM_Vec4	lightDir;
+	HMM_Vec4	viewPos;
+};
+
 struct Application
 {
 	oval_device_t* device;
+	HGEGraphics::Shader* texture3d;
 	HGEGraphics::Texture* noisemap;
 	CGPUSamplerId sampler = CGPU_NULLPTR;
 	clock_t time;
 	HGEGraphics::Mesh* quad;
+	ObjectData object_data;
+	float lightDirEulerX, lightDirEulerY;
 };
 
 void initNoiseMap(Application& app, uint32_t width, uint32_t height, uint32_t depth)
@@ -186,6 +197,8 @@ void _init_resource(Application& app)
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
 
+	app.texture3d = HGEGraphics::create_shader(app.device->device, "texture3d/texture3d.vert.spv", "texture3d/texture3d.frag.spv", blend_desc, depth_desc, rasterizer_state);
+
 	CGPUSamplerDescriptor cubemap_sampler_desc = {
 		.min_filter = CGPU_FILTER_TYPE_LINEAR,
 		.mag_filter = CGPU_FILTER_TYPE_LINEAR,
@@ -213,11 +226,16 @@ void _free_resource(Application& app)
 
 	free_texture(app.noisemap);
 	app.noisemap = nullptr;
+
+	free_shader(app.texture3d);
+	app.texture3d = nullptr;
 }
 
 void _init_world(Application& app)
 {
 	app.time = clock();
+	app.lightDirEulerX = 180;
+	app.lightDirEulerY = -30;
 }
 
 void on_update(oval_device_t* device)
@@ -247,6 +265,17 @@ void on_update(oval_device_t* device)
 
 
 	auto objectMat = HMM_Translate(HMM_V3(0, 0, 0));
+
+	auto lightRot = HMM_QFromEuler_YXZ(HMM_AngleDeg(app->lightDirEulerX), HMM_AngleDeg(app->lightDirEulerY), 0);
+	auto lightDir = HMM_RotateV3Q(HMM_V3_Forward, lightRot);
+
+	app->object_data.vpMatrix = vpMat;
+	app->object_data.wMatrix = objectMat;
+	app->object_data.lightDir = HMM_V4V(lightDir, 0);
+	auto depth = app->object_data.viewPos.W;
+	depth = duration * 0.15f;
+	depth -= (int)depth;
+	app->object_data.viewPos = HMM_V4V(eye, depth);
 }
 
 void on_imgui(oval_device_t* device)
@@ -255,6 +284,7 @@ void on_imgui(oval_device_t* device)
 
 	if (ImGui::Button("Capture"))
 		oval_render_debug_capture(device);
+	ImGui::SliderFloat2("Light Dir", &app->lightDirEulerX, -180, 180);
 }
 
 void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::resource_handle_t rg_back_buffer)
@@ -263,6 +293,7 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 
 	Application* app = (Application*)device->descriptor.userdata;
 
+	auto object_ubo_handle = rendergraph_declare_uniform_buffer_quick(&rg, sizeof(ObjectData), &app->object_data);
 
 	auto depth_handle = rendergraph_declare_texture(&rg);
 	rg_texture_set_extent(&rg, depth_handle, rg_texture_get_width(&rg, rg_back_buffer), rg_texture_get_height(&rg, rg_back_buffer));
@@ -272,18 +303,26 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 	uint32_t color = 0xff000000;
 	renderpass_add_color_attachment(&passBuilder, rg_back_buffer, ECGPULoadAction::CGPU_LOAD_ACTION_CLEAR, color, ECGPUStoreAction::CGPU_STORE_ACTION_STORE);
 	renderpass_add_depth_attachment(&passBuilder, depth_handle, CGPU_LOAD_ACTION_CLEAR, 0, CGPU_STORE_ACTION_DISCARD, CGPU_LOAD_ACTION_CLEAR, 0, CGPU_STORE_ACTION_DISCARD);
+	renderpass_use_buffer(&passBuilder, object_ubo_handle);
 
 	struct MainPassPassData
 	{
 		Application* app;
+		buffer_handle_t object_ubo_handle;
 	};
 	MainPassPassData* passdata;
 	renderpass_set_executable(&passBuilder, [](RenderPassEncoder* encoder, void* passdata)
 		{
 			MainPassPassData* resolved_passdata = (MainPassPassData*)passdata;
 			Application& app = *resolved_passdata->app;
+
+			set_global_texture(encoder, app.noisemap, 0, 0);
+			set_global_sampler(encoder, app.sampler, 0, 1);
+			set_global_buffer(encoder, resolved_passdata->object_ubo_handle, 0, 2);
+			draw(encoder, app.texture3d, app.quad);
 		}, sizeof(MainPassPassData), (void**)&passdata);
 	passdata->app = app;
+	passdata->object_ubo_handle = object_ubo_handle;
 }
 
 int main()

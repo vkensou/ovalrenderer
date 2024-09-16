@@ -3,9 +3,7 @@ struct ObjectData
     float4x4    wMatrix;
     float4x4    vpMatrix;
     float4      lightDir;
-    float4      shininess;
     float4      viewPos;
-    float4      albedo;
 };
 
 [[vk::binding(2, 0)]]
@@ -38,12 +36,22 @@ VSOutput vert(VSInput input)
 }
 
 [[vk::binding(0, 0)]]
-Texture3D colorMap;
+Texture3D noiseMap;
 [[vk::binding(1, 0)]]
-SamplerState colorMapSampler;
+SamplerState noiseMapSampler;
 
 [shader("pixel")]
 float4 frag(VSOutput input) : SV_TARGET
 {
-    return 0;
+    float4 color = noiseMap.Sample(noiseMapSampler, float3(input.UV0, objectData.viewPos.w));
+
+    float3 N = normalize(input.Normal.xyz);
+    float3 V = normalize(objectData.viewPos.xyz - input.WorldPos.xyz);
+    float3 L = objectData.lightDir.xyz;
+    float3 R = reflect(-L, N);
+    
+	float3 diffuse = max(dot(N, L), 0.0) * float3(1.0, 1.0, 1.0);
+	float specular = pow(max(dot(R, V), 0.0), 16.0) * color.r;
+
+	return float4(diffuse * color.r + specular, 1.0);
 }

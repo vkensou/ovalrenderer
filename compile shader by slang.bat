@@ -15,3 +15,6 @@
 
 .\tools\slang\slangc examples\hdr\hdr.slang -profile sm_5_0 -capability SPIRV_1_3 -entry vert -o examples\hdr\hdr.vert.spv -O3 -emit-spirv-directly -matrix-layout-row-major -I examples\shaderlibrary
 .\tools\slang\slangc examples\hdr\hdr.slang -profile sm_5_0 -capability SPIRV_1_3 -entry frag -o examples\hdr\hdr.frag.spv -O3 -emit-spirv-directly -matrix-layout-row-major -I examples\shaderlibrary
+
+.\tools\slang\slangc examples\texture3d\texture3d.slang -profile sm_5_0 -capability SPIRV_1_3 -entry vert -o examples\texture3d\texture3d.vert.spv -O3 -emit-spirv-directly -matrix-layout-row-major -I examples\shaderlibrary
+.\tools\slang\slangc examples\texture3d\texture3d.slang -profile sm_5_0 -capability SPIRV_1_3 -entry frag -o examples\texture3d\texture3d.frag.spv -O3 -emit-spirv-directly -matrix-layout-row-major -I examples\shaderlibrary
