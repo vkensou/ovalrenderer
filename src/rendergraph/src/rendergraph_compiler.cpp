@@ -174,7 +174,7 @@ namespace HGEGraphics
 				continue;
 
 			if (resource.resourceType == ResourceType::Texture)
-				compiled.resources.emplace_back(resource.name, resource.manageType, resource.width, resource.height, resource.format, resource.texture, resource.mipCount, resource.arraySize, resource.parent, resource.mipLevel, resource.arraySlice);
+				compiled.resources.emplace_back(resource.name, resource.manageType, resource.width, resource.height, resource.depth, resource.format, resource.texture, resource.mipCount, resource.arraySize, resource.parent, resource.mipLevel, resource.arraySlice);
 			else if (resource.resourceType == ResourceType::Buffer)
 				compiled.resources.emplace_back(resource.name, resource.manageType, resource.size, resource.buffer, resource.bufferType, resource.memoryUsage);
 
@@ -204,13 +204,13 @@ namespace HGEGraphics
 
 		return compiled;
 	}
-	CompiledResourceNode::CompiledResourceNode(const char8_t* name, ManageType type, uint16_t width, uint16_t height, ECGPUFormat format, Texture* imported_texture, uint8_t mipCount, uint8_t arraySize, uint16_t parent, uint8_t mipLevel, uint8_t arraySlice)
-		: name(name), resourceType(ResourceType::Texture), manageType(type), width(width), height(height), format(format), imported_texture(imported_texture), imported_buffer(CGPU_NULLPTR), managered_texture(nullptr), size(0), managed_buffer(nullptr), bufferType(CGPU_RESOURCE_TYPE_NONE), memoryUsage(CGPU_MEM_USAGE_UNKNOWN)
+	CompiledResourceNode::CompiledResourceNode(const char8_t* name, ManageType type, uint16_t width, uint16_t height, uint16_t depth, ECGPUFormat format, Texture* imported_texture, uint8_t mipCount, uint8_t arraySize, uint16_t parent, uint8_t mipLevel, uint8_t arraySlice)
+		: name(name), resourceType(ResourceType::Texture), manageType(type), width(width), height(height), depth(depth), format(format), imported_texture(imported_texture), imported_buffer(CGPU_NULLPTR), managered_texture(nullptr), size(0), managed_buffer(nullptr), bufferType(CGPU_RESOURCE_TYPE_NONE), memoryUsage(CGPU_MEM_USAGE_UNKNOWN)
 		, mipCount(mipCount), arraySize(arraySize), parent(parent), mipLevel(mipLevel), arraySlice(arraySlice)
 	{
 	}
 	CompiledResourceNode::CompiledResourceNode(const char8_t* name, ManageType type, uint32_t size, Buffer* imported_buffer, CGPUResourceTypes bufferType, ECGPUMemoryUsage memoryUsage)
-		: name(name), resourceType(ResourceType::Buffer), manageType(type), size(size), width(0), height(0), format(CGPU_FORMAT_UNDEFINED), imported_texture(CGPU_NULLPTR), imported_buffer(imported_buffer), managered_texture(nullptr), managed_buffer(nullptr), bufferType(bufferType), memoryUsage(memoryUsage)
+		: name(name), resourceType(ResourceType::Buffer), manageType(type), size(size), width(0), height(0), depth(depth), format(CGPU_FORMAT_UNDEFINED), imported_texture(CGPU_NULLPTR), imported_buffer(imported_buffer), managered_texture(nullptr), managed_buffer(nullptr), bufferType(bufferType), memoryUsage(memoryUsage)
 		, mipCount(0), arraySize(0), parent(0), mipLevel(0), arraySlice(0)
 	{
 	}
@@ -251,7 +251,7 @@ namespace HGEGraphics
 		desc.format = texture->handle->info->format;
 		desc.usages = CGPU_TVU_SRV;
 		desc.aspects = CGPU_TVA_COLOR;
-		desc.dims = CGPU_TEX_DIMENSION_2D;
+		desc.dims = texture->handle->info->depth > 1 ? CGPU_TEX_DIMENSION_3D :  CGPU_TEX_DIMENSION_2D;
 		desc.base_array_layer = resourceNode.arraySlice;
 		desc.array_layer_count = resourceNode.manageType != ManageType::SubResource ? texture->handle->info->array_size_minus_one + 1 : 1;
 		desc.base_mip_level = resourceNode.mipLevel;

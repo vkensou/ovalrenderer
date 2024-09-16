@@ -41,7 +41,7 @@ namespace HGEGraphics
 	public:
 		TexturePool(TexturePool* upstream, std::pmr::memory_resource* const memory_resource);
 
-		TextureWrap* getTexture(uint16_t width, uint16_t height, ECGPUFormat format);
+		TextureWrap* getTexture(uint16_t width, uint16_t height, uint16_t depth, ECGPUFormat format);
 	};
 
 	class CgpuTexturePool

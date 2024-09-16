@@ -9,8 +9,8 @@ namespace HGEGraphics
 
 	struct CompiledResourceNode
 	{
-		CompiledResourceNode(const char8_t* name, ManageType type, uint16_t width, uint16_t height, ECGPUFormat format, Texture* texture, uint8_t mipCount, uint8_t arraySize, uint16_t parent, uint8_t mipLevel, uint8_t arraySlice);
-		CompiledResourceNode(const char8_t* name, ManageType type, uint32_t width, Buffer* imported_buffer, CGPUResourceTypes bufferType, ECGPUMemoryUsage memoryUsage);
+		CompiledResourceNode(const char8_t* name, ManageType type, uint16_t width, uint16_t height, uint16_t depth, ECGPUFormat format, Texture* texture, uint8_t mipCount, uint8_t arraySize, uint16_t parent, uint8_t mipLevel, uint8_t arraySlice);
+		CompiledResourceNode(const char8_t* name, ManageType type, uint32_t size, Buffer* imported_buffer, CGPUResourceTypes bufferType, ECGPUMemoryUsage memoryUsage);
 
 		const char8_t* name;
 		const ResourceType resourceType;
@@ -19,6 +19,7 @@ namespace HGEGraphics
 		Texture* imported_texture;
 		const uint16_t width;
 		const uint16_t height;
+		const uint16_t depth;
 		const ECGPUFormat format;
 		Buffer* imported_buffer;
 		BufferWrap* managed_buffer;

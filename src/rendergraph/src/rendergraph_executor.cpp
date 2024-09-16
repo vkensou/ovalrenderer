@@ -185,6 +185,7 @@ namespace HGEGraphics
 			{
 				auto& resource = compiledRenderGraph.resources[pass.colorAttachments[i].resourceIndex];
 				auto texture = getTexture(compiledRenderGraph.resources, resource);
+				assert(texture->handle->info->depth == 1);
 				CGPUTextureViewDescriptor desc = {};
 				desc.texture = texture->handle;
 				desc.format = texture->handle->info->format;
@@ -202,6 +203,7 @@ namespace HGEGraphics
 			{
 				auto& resource = compiledRenderGraph.resources[pass.depthAttachment.resourceIndex];
 				auto texture = getTexture(compiledRenderGraph.resources, resource);
+				assert(texture->handle->info->depth == 1);
 				CGPUTextureViewDescriptor desc = {};
 				desc.texture = texture->handle;
 				desc.format = texture->handle->info->format;
@@ -392,7 +394,7 @@ namespace HGEGraphics
 				{
 					if (resource.manageType == ManageType::Managed)
 					{
-						resource.managered_texture = context.texturePool.getTexture(resource.width, resource.height, resource.format);
+						resource.managered_texture = context.texturePool.getTexture(resource.width, resource.height, resource.depth, resource.format);
 					}
 				}
 				else if (resource.resourceType == ResourceType::Buffer)
