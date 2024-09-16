@@ -120,6 +120,34 @@ struct Application
 
 void initNoiseMap(Application& app, uint32_t width, uint32_t height, uint32_t depth)
 {
+	const uint32_t texMemSize = width * height * depth;
+
+	uint8_t* data = new uint8_t[texMemSize];
+	memset(data, 0, texMemSize);
+
+	auto tStart = std::chrono::high_resolution_clock::now();
+
+	PerlinNoise<float> perlinNoise(true);
+	FractalNoise<float> fractalNoise(perlinNoise);
+
+	const float noiseScale = static_cast<float>(rand() % 10) + 4.0f;
+
+	for (int32_t z = 0; z < static_cast<int32_t>(depth); z++)
+	{
+		for (int32_t y = 0; y < static_cast<int32_t>(height); y++)
+		{
+			for (int32_t x = 0; x < static_cast<int32_t>(width); x++)
+			{
+				float nx = (float)x / (float)width;
+				float ny = (float)y / (float)height;
+				float nz = (float)z / (float)depth;
+				float n = fractalNoise.noise(nx * noiseScale, ny * noiseScale, nz * noiseScale);
+				n = n - floor(n);
+				data[x + y * width + z * width * height] = static_cast<uint8_t>(floor(n * 255));
+			}
+		}
+	}
+
 	CGPUTextureDescriptor descriptor =
 	{
 		.width = width,
@@ -130,7 +158,9 @@ void initNoiseMap(Application& app, uint32_t width, uint32_t height, uint32_t de
 		.mip_levels = 1,
 		.descriptors = CGPU_RESOURCE_TYPE_TEXTURE,
 	};
-	app.noisemap = oval_create_texture_from_buffer(app.device, descriptor, 0, 0);
+	app.noisemap = oval_create_texture_from_buffer(app.device, descriptor, data, texMemSize);
+
+	delete[] data;
 }
 
 void _init_resource(Application& app)
