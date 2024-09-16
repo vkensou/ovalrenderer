@@ -42,4 +42,5 @@ void oval_query_render_profile(oval_device_t* device, uint32_t* length, const ch
 
 HGEGraphics::Texture* oval_load_texture(oval_device_t* device, const char8_t* filepath, bool mipmap);
 HGEGraphics::Texture* oval_create_texture_from_buffer(oval_device_t* device, const char8_t* name, uint32_t width, uint32_t height, const unsigned char* data, uint64_t data_size, bool mipmap);
+HGEGraphics::Texture* oval_create_texture_from_buffer(oval_device_t* device, CGPUTextureDescriptor descriptor, const unsigned char* data, uint64_t data_size);
 HGEGraphics::Mesh* oval_load_mesh(oval_device_t* device, const char8_t* filepath);

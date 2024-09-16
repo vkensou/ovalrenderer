@@ -128,11 +128,9 @@ void initNoiseMap(Application& app, uint32_t width, uint32_t height, uint32_t de
 		.array_size = 1,
 		.format = CGPU_FORMAT_R8_UNORM,
 		.mip_levels = 1,
-		.owner_queue = app.device->gfx_queue,
-		.start_state = CGPU_RESOURCE_STATE_UNDEFINED,
 		.descriptors = CGPU_RESOURCE_TYPE_TEXTURE,
 	};
-	app.noisemap = HGEGraphics::create_texture(app.device->device, descriptor);
+	app.noisemap = oval_create_texture_from_buffer(app.device, descriptor, 0, 0);
 }
 
 void _init_resource(Application& app)

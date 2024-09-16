@@ -970,7 +970,7 @@ std::pair<ECGPUFormat, int> detectKtxTextureFormat(ktxTexture* ktxTexture)
 		switch (ktx1->glInternalformat)
 		{
 		case 0x1908:
-			return { CGPU_FORMAT_R8G8B8A8_UNORM, 4 };
+			return { CGPU_FORMAT_R8G8B8A8_SRGB, 4 };
 		case 0x881A:
 			return { CGPU_FORMAT_R16G16B16A16_SFLOAT, 8 };
 		}
@@ -982,7 +982,7 @@ std::pair<ECGPUFormat, int> detectKtxTextureFormat(ktxTexture* ktxTexture)
 		switch (ktx2->vkFormat)
 		{
 		case 23:
-			return { CGPU_FORMAT_R8G8B8A8_UNORM, 3 };
+			return { CGPU_FORMAT_R8G8B8A8_SRGB, 3 };
 		}
 		printf("format: %d\n", ktx2->vkFormat);
 	}
@@ -1070,7 +1070,7 @@ HGEGraphics::Texture* load_texture_raw(oval_device_t* device, const char8_t* fil
 		.height = (uint64_t)height,
 		.depth = 1,
 		.array_size = 1,
-		.format = CGPU_FORMAT_R8G8B8A8_UNORM,
+		.format = CGPU_FORMAT_R8G8B8A8_SRGB,
 		.mip_levels = mipLevels,
 		.owner_queue = device->gfx_queue,
 		.start_state = CGPU_RESOURCE_STATE_UNDEFINED,
@@ -1106,17 +1106,27 @@ HGEGraphics::Texture* oval_create_texture_from_buffer(oval_device_t* device, con
 		.array_size = 1,
 		.format = CGPU_FORMAT_R8G8B8A8_UNORM,
 		.mip_levels = mipLevels,
-		.owner_queue = device->gfx_queue,
-		.start_state = CGPU_RESOURCE_STATE_UNDEFINED,
 		.descriptors = CGPUResourceTypes(mipmap ? CGPU_RESOURCE_TYPE_TEXTURE | CGPU_RESOURCE_TYPE_RENDER_TARGET : CGPU_RESOURCE_TYPE_TEXTURE),
 	};
-	auto texture = HGEGraphics::create_texture(device->device, texture_desc);
 
-	stbi_uc* copy_data = (stbi_uc*)stbi__malloc(data_size);
-	memcpy(copy_data, data, data_size);
+	return oval_create_texture_from_buffer(device, texture_desc, data, data_size);
+}
 
-	auto D = (oval_cgpu_device_t*)device;
-	D->wait_upload_texture.push({ texture, 0, copy_data, nullptr, mipmap && texture->handle->info->mip_levels > 1 });
+HGEGraphics::Texture* oval_create_texture_from_buffer(oval_device_t* device, CGPUTextureDescriptor descriptor, const unsigned char* data, uint64_t data_size)
+{
+	descriptor.owner_queue = device->gfx_queue;
+	descriptor.start_state = CGPU_RESOURCE_STATE_UNDEFINED;
+	auto texture = HGEGraphics::create_texture(device->device, descriptor);
+	bool mipmap = descriptor.mip_levels > 1;
+
+	if (data && data_size > 0)
+	{
+		stbi_uc* copy_data = (stbi_uc*)stbi__malloc(data_size);
+		memcpy(copy_data, data, data_size);
+
+		auto D = (oval_cgpu_device_t*)device;
+		D->wait_upload_texture.push({ texture, 0, copy_data, nullptr, mipmap });
+	}
 
 	return texture;
 }
