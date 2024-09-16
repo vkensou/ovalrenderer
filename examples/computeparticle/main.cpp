@@ -27,8 +27,10 @@ struct Application
 	clock_t time;
 	HGEGraphics::Mesh* quad;
 	ObjectData object_data;
-	HGEGraphics::Buffer* particle_vertex_buffer;
-	std::vector<Particle> init_particles;
+	HGEGraphics::Mesh* particle_mesh;
+	HGEGraphics::Shader* particle;
+	HGEGraphics::Texture* colormap;
+	HGEGraphics::Texture* gradientmap;
 };
 
 void _init_resource(Application& app)
@@ -45,15 +47,18 @@ void _init_resource(Application& app)
 		.independent_blend = false,
 	};
 	CGPUDepthStateDesc depth_desc = {
-		.depth_test = true,
-		.depth_write = true,
-		.depth_func = CGPU_CMP_GEQUAL,
+		.depth_test = false,
+		.depth_write = false,
+		.depth_func = CGPU_CMP_ALWAYS,
 		.stencil_test = false,
 	};
 	CGPURasterizerStateDescriptor rasterizer_state = {
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
+	app.particle = HGEGraphics::create_shader(app.device->device, "computeparticle/particle.vert.spv", "computeparticle/particle.frag.spv", blend_desc, depth_desc, rasterizer_state);
 
+	app.colormap = oval_load_texture(app.device, u8"media/textures/particle01_rgba.ktx", false);
+	app.gradientmap = oval_load_texture(app.device, u8"media/textures/particle_gradient_rgba.ktx", false);
 
 	CGPUSamplerDescriptor cubemap_sampler_desc = {
 		.min_filter = CGPU_FILTER_TYPE_LINEAR,
@@ -72,33 +77,45 @@ void _init_resource(Application& app)
 	std::default_random_engine rndEngine((unsigned)time(nullptr));
 	std::uniform_real_distribution<float> rndDist(-1.0f, 1.0f);
 
-	app.init_particles.resize(PARTICLE_COUNT);
-	for (auto& particle : app.init_particles) {
+	std::vector<Particle> init_particles(PARTICLE_COUNT);
+	for (auto& particle : init_particles) {
 		particle.pos = HMM_V2(rndDist(rndEngine), rndDist(rndEngine));
 		particle.vel = HMM_V2(0.0f, 0.0f);
 		particle.gradientPos = HMM_V4(particle.pos.X / 2.0f, 0, 0, 0);
 	}
 
-	CGPUBufferDescriptor desc = 
+	CGPUVertexLayout particle_vertex_layout = 
 	{
-		.size = sizeof(Particle) * PARTICLE_COUNT,
-		.name = u8"particle vertex buffer",
-		.descriptors = CGPU_RESOURCE_TYPE_VERTEX_BUFFER,
-		.memory_usage = CGPU_MEM_USAGE_GPU_ONLY,
+		.attribute_count = 3,
+		.attributes =
+		{
+			{ u8"POSITION", 1, CGPU_FORMAT_R32G32_SFLOAT, 0, 0, sizeof(float) * 2, CGPU_INPUT_RATE_VERTEX },
+			{ u8"TEXCOORD0", 1, CGPU_FORMAT_R32G32_SFLOAT, 0, sizeof(float) * 2, sizeof(float) * 2, CGPU_INPUT_RATE_VERTEX },
+			{ u8"TEXCOORD1", 1, CGPU_FORMAT_R32G32B32A32_SFLOAT, 0, sizeof(float) * 4, sizeof(float) * 4, CGPU_INPUT_RATE_VERTEX },
+		}
 	};
-	app.particle_vertex_buffer = HGEGraphics::create_buffer(app.device->device, desc);
+	app.particle_mesh = oval_create_mesh_from_buffer(app.device, PARTICLE_COUNT, 0, CGPU_PRIM_TOPO_POINT_LIST, particle_vertex_layout, 0, (uint8_t*)init_particles.data(), nullptr);
 }
 
 void _free_resource(Application& app)
 {
+	free_texture(app.colormap);
+	app.colormap = nullptr;
+
+	free_texture(app.gradientmap);
+	app.gradientmap = nullptr;
+
 	free_mesh(app.quad);
 	app.quad = nullptr;
 
 	cgpu_free_sampler(app.sampler);
 	app.sampler = nullptr;
 
-	free_buffer(app.particle_vertex_buffer);
-	app.particle_vertex_buffer = nullptr;
+	free_mesh(app.particle_mesh);
+	app.particle_mesh = nullptr;
+
+	free_shader(app.particle);
+	app.particle = nullptr;
 }
 
 void _init_world(Application& app)
@@ -160,40 +177,13 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 
 	Application* app = (Application*)device->descriptor.userdata;
 
-	if (!app->init_particles.empty())
-	{
-		auto particle_vertex_buffer_handle = rendergraph_declare_buffer(&rg);
-		rg_buffer_import(&rg, particle_vertex_buffer_handle, app->particle_vertex_buffer);
-		struct UploadPassPassData
-		{
-			Application* app;
-		};
-		UploadPassPassData* passdata;
-		rendergraph_add_uploadbufferpass_ex(&rg, u8"init particle vertex buffer", particle_vertex_buffer_handle, sizeof(Particle) * app->init_particles.size(), 0, app->init_particles.data(), [](UploadEncoder* encoder, void* passdata)
-			{
-				UploadPassPassData* resolved_passdata = (UploadPassPassData*)passdata;
-				Application& app = *resolved_passdata->app;
-				app.init_particles.clear();
-			}, sizeof(UploadPassPassData), (void**)&passdata);
-		passdata->app = app;
-	}
-
-	auto object_ubo_handle = rendergraph_declare_uniform_buffer_quick(&rg, sizeof(ObjectData), &app->object_data);
-
-	auto depth_handle = rendergraph_declare_texture(&rg);
-	rg_texture_set_extent(&rg, depth_handle, rg_texture_get_width(&rg, rg_back_buffer), rg_texture_get_height(&rg, rg_back_buffer));
-	rg_texture_set_depth_format(&rg, depth_handle, DepthBits::D24, true);
-
 	auto passBuilder = rendergraph_add_renderpass(&rg, u8"Main Pass");
 	uint32_t color = 0xff000000;
 	renderpass_add_color_attachment(&passBuilder, rg_back_buffer, ECGPULoadAction::CGPU_LOAD_ACTION_CLEAR, color, ECGPUStoreAction::CGPU_STORE_ACTION_STORE);
-	renderpass_add_depth_attachment(&passBuilder, depth_handle, CGPU_LOAD_ACTION_CLEAR, 0, CGPU_STORE_ACTION_DISCARD, CGPU_LOAD_ACTION_CLEAR, 0, CGPU_STORE_ACTION_DISCARD);
-	renderpass_use_buffer(&passBuilder, object_ubo_handle);
 
 	struct MainPassPassData
 	{
 		Application* app;
-		buffer_handle_t object_ubo_handle;
 	};
 	MainPassPassData* passdata;
 	renderpass_set_executable(&passBuilder, [](RenderPassEncoder* encoder, void* passdata)
@@ -201,13 +191,21 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 			MainPassPassData* resolved_passdata = (MainPassPassData*)passdata;
 			Application& app = *resolved_passdata->app;
 
-			//set_global_texture(encoder, app.noisemap, 0, 0);
-			//set_global_sampler(encoder, app.sampler, 0, 1);
-			//set_global_buffer(encoder, resolved_passdata->object_ubo_handle, 0, 2);
-			//draw(encoder, app.texture3d, app.quad);
+			set_global_texture(encoder, app.colormap, 0, 0);
+			set_global_sampler(encoder, app.sampler, 0, 1);
+			set_global_texture(encoder, app.gradientmap, 0, 2);
+			set_global_sampler(encoder, app.sampler, 0, 3);
+			struct ConstantData
+			{
+				float screendim[2];
+			} data;
+			data = {
+				.screendim = { (float)app.device->descriptor.width, (float)app.device->descriptor.height },
+			};
+			push_constants(encoder, app.particle, u8"pushConstants", &data);
+			draw(encoder, app.particle, app.particle_mesh);
 		}, sizeof(MainPassPassData), (void**)&passdata);
 	passdata->app = app;
-	passdata->object_ubo_handle = object_ubo_handle;
 }
 
 int main()

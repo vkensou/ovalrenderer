@@ -223,16 +223,21 @@ namespace HGEGraphics
 	Texture* create_texture(CGPUDeviceId device, const CGPUTextureDescriptor& desc)
 	{
 		auto texture = new Texture();
-		texture->handle = cgpu_create_texture(device, &desc);
-		texture->cur_states.resize(desc.array_size * desc.mip_levels);
+
+		CGPUTextureDescriptor new_desc = desc;
+		if (desc.depth == 1 && desc.height == 1)
+			new_desc.flags |= CGPU_TCF_FORCE_2D;
+
+		texture->handle = cgpu_create_texture(device, &new_desc);
+		texture->cur_states.resize(new_desc.array_size * new_desc.mip_levels);
 		std::fill(texture->cur_states.begin(), texture->cur_states.end(), CGPU_RESOURCE_STATE_UNDEFINED);
 		texture->states_consistent = true;
 
 		uint32_t arrayCount = texture->handle->info->array_size_minus_one + 1;
 		ECGPUTextureDimension dims = CGPU_TEX_DIMENSION_2D;
-		if (CGPU_RESOURCE_TYPE_TEXTURE_CUBE == (desc.descriptors & CGPU_RESOURCE_TYPE_TEXTURE_CUBE))
+		if (CGPU_RESOURCE_TYPE_TEXTURE_CUBE == (new_desc.descriptors & CGPU_RESOURCE_TYPE_TEXTURE_CUBE))
 			dims = CGPU_TEX_DIMENSION_CUBE;
-		else if (desc.depth > 1)
+		else if (new_desc.depth > 1)
 			dims = CGPU_TEX_DIMENSION_3D;
 		CGPUTextureViewDescriptor view_desc;
 		view_desc.texture = texture->handle;
