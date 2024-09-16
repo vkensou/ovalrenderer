@@ -200,6 +200,8 @@ namespace HGEGraphics
 		ECGPUTextureDimension dims = CGPU_TEX_DIMENSION_2D;
 		if (CGPU_RESOURCE_TYPE_TEXTURE_CUBE == (desc.descriptors & CGPU_RESOURCE_TYPE_TEXTURE_CUBE))
 			dims = CGPU_TEX_DIMENSION_CUBE;
+		else if (desc.depth > 1)
+			dims = CGPU_TEX_DIMENSION_3D;
 		CGPUTextureViewDescriptor view_desc;
 		view_desc.texture = texture->handle;
 		view_desc.format = texture->handle->info->format;
