@@ -11,6 +11,15 @@ struct ObjectData
 	HMM_Vec4	viewPos;
 };
 
+const int PARTICLE_COUNT = 256 * 1024;
+
+struct Particle
+{
+	HMM_Vec2 pos;								// Particle position
+	HMM_Vec2 vel;								// Particle velocity
+	HMM_Vec4 gradientPos;						// Texture coordinates for the gradient ramp map
+};
+
 struct Application
 {
 	oval_device_t* device;
@@ -18,7 +27,8 @@ struct Application
 	clock_t time;
 	HGEGraphics::Mesh* quad;
 	ObjectData object_data;
-	float lightDirEulerX, lightDirEulerY;
+	HGEGraphics::Buffer* particle_vertex_buffer;
+	std::vector<Particle> init_particles;
 };
 
 void _init_resource(Application& app)
@@ -58,6 +68,25 @@ void _init_resource(Application& app)
 	app.sampler = cgpu_create_sampler(app.device->device, &cubemap_sampler_desc);
 
 	app.quad = oval_load_mesh(app.device, u8"media/models/Quad.obj");
+
+	std::default_random_engine rndEngine((unsigned)time(nullptr));
+	std::uniform_real_distribution<float> rndDist(-1.0f, 1.0f);
+
+	app.init_particles.resize(PARTICLE_COUNT);
+	for (auto& particle : app.init_particles) {
+		particle.pos = HMM_V2(rndDist(rndEngine), rndDist(rndEngine));
+		particle.vel = HMM_V2(0.0f, 0.0f);
+		particle.gradientPos = HMM_V4(particle.pos.X / 2.0f, 0, 0, 0);
+	}
+
+	CGPUBufferDescriptor desc = 
+	{
+		.size = sizeof(Particle) * PARTICLE_COUNT,
+		.name = u8"particle vertex buffer",
+		.descriptors = CGPU_RESOURCE_TYPE_VERTEX_BUFFER,
+		.memory_usage = CGPU_MEM_USAGE_GPU_ONLY,
+	};
+	app.particle_vertex_buffer = HGEGraphics::create_buffer(app.device->device, desc);
 }
 
 void _free_resource(Application& app)
@@ -67,13 +96,14 @@ void _free_resource(Application& app)
 
 	cgpu_free_sampler(app.sampler);
 	app.sampler = nullptr;
+
+	free_buffer(app.particle_vertex_buffer);
+	app.particle_vertex_buffer = nullptr;
 }
 
 void _init_world(Application& app)
 {
 	app.time = clock();
-	app.lightDirEulerX = 180;
-	app.lightDirEulerY = -30;
 }
 
 void on_update(oval_device_t* device)
@@ -104,7 +134,7 @@ void on_update(oval_device_t* device)
 
 	auto objectMat = HMM_Translate(HMM_V3(0, 0, 0));
 
-	auto lightRot = HMM_QFromEuler_YXZ(HMM_AngleDeg(app->lightDirEulerX), HMM_AngleDeg(app->lightDirEulerY), 0);
+	auto lightRot = HMM_QFromEuler_YXZ(HMM_AngleDeg(0), HMM_AngleDeg(0), 0);
 	auto lightDir = HMM_RotateV3Q(HMM_V3_Forward, lightRot);
 
 	app->object_data.vpMatrix = vpMat;
@@ -122,7 +152,6 @@ void on_imgui(oval_device_t* device)
 
 	if (ImGui::Button("Capture"))
 		oval_render_debug_capture(device);
-	ImGui::SliderFloat2("Light Dir", &app->lightDirEulerX, -180, 180);
 }
 
 void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::resource_handle_t rg_back_buffer)
@@ -130,6 +159,24 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 	using namespace HGEGraphics;
 
 	Application* app = (Application*)device->descriptor.userdata;
+
+	if (!app->init_particles.empty())
+	{
+		auto particle_vertex_buffer_handle = rendergraph_declare_buffer(&rg);
+		rg_buffer_import(&rg, particle_vertex_buffer_handle, app->particle_vertex_buffer);
+		struct UploadPassPassData
+		{
+			Application* app;
+		};
+		UploadPassPassData* passdata;
+		rendergraph_add_uploadbufferpass_ex(&rg, u8"init particle vertex buffer", particle_vertex_buffer_handle, sizeof(Particle) * app->init_particles.size(), 0, app->init_particles.data(), [](UploadEncoder* encoder, void* passdata)
+			{
+				UploadPassPassData* resolved_passdata = (UploadPassPassData*)passdata;
+				Application& app = *resolved_passdata->app;
+				app.init_particles.clear();
+			}, sizeof(UploadPassPassData), (void**)&passdata);
+		passdata->app = app;
+	}
 
 	auto object_ubo_handle = rendergraph_declare_uniform_buffer_quick(&rg, sizeof(ObjectData), &app->object_data);
 
