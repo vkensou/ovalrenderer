@@ -11,6 +11,7 @@ namespace HGEGraphics
 	{
 		CompiledResourceNode(const char8_t* name, ManageType type, uint16_t width, uint16_t height, uint16_t depth, ECGPUFormat format, Texture* texture, uint8_t mipCount, uint8_t arraySize, uint16_t parent, uint8_t mipLevel, uint8_t arraySlice);
 		CompiledResourceNode(const char8_t* name, ManageType type, uint32_t size, Buffer* imported_buffer, CGPUResourceTypes bufferType, ECGPUMemoryUsage memoryUsage);
+		CompiledResourceNode();
 
 		const char8_t* name;
 		const ResourceType resourceType;
@@ -42,6 +43,7 @@ namespace HGEGraphics
 	struct CompiledRenderPassNode
 	{
 		CompiledRenderPassNode(const char8_t* name, std::pmr::memory_resource* const memory_resource);
+		CompiledRenderPassNode();
 
 		const char8_t* name{ nullptr };
 		pass_type type;

@@ -349,8 +349,8 @@ namespace HGEGraphics
 						if (binder.set == i && binder.bind == res.binding)
 						{
 							CGPUTextureViewId textureview = CGPU_NULLPTR;
-							if (binder.texture_handle.index().has_value())
-								textureview = rendergraph_resolve_texture_view(encoder, binder.texture_handle.index().value());
+							if (rendergraph_handle_valid(binder.texture_handle))
+								textureview = rendergraph_resolve_texture_view(encoder, binder.texture_handle);
 							else if (binder.texture && binder.texture->prepared)
 								textureview = binder.texture->view;
 							if (!textureview)
@@ -383,7 +383,7 @@ namespace HGEGraphics
 						auto& binder = *iter;
 						if (binder.set == i && binder.bind == res.binding)
 						{
-							encoder->buffers[buffer_count] = rendergraph_resolve_buffer(encoder, binder.buffer.index().value());
+							encoder->buffers[buffer_count] = rendergraph_resolve_buffer(encoder, binder.buffer);
 							if (binder.offset != 0 || binder.size != 0)
 							{
 								encoder->buffer_offset_sizes[offset_size_count] = binder.offset;
@@ -422,10 +422,10 @@ namespace HGEGraphics
 	void update_mesh(RenderPassEncoder* encoder, Mesh* mesh)
 	{
 		CGPUBufferId vertex_buffer = CGPU_NULLPTR;
-		if (mesh->dynamic_vertex_buffer_handle.valid())
+		if (rendergraph_handle_valid(mesh->dynamic_vertex_buffer_handle))
 		{
 			auto vertex_buffer_handle = mesh->dynamic_vertex_buffer_handle;
-			vertex_buffer = rendergraph_resolve_buffer(encoder, vertex_buffer_handle.index().value());
+			vertex_buffer = rendergraph_resolve_buffer(encoder, vertex_buffer_handle);
 		}
 		else if (mesh->vertex_buffer)
 		{
@@ -441,10 +441,10 @@ namespace HGEGraphics
 		}
 
 		CGPUBufferId index_buffer = CGPU_NULLPTR;
-		if (mesh->dynamic_index_buffer_handle.valid())
+		if (rendergraph_handle_valid(mesh->dynamic_index_buffer_handle))
 		{
 			auto index_buffer_handle = mesh->dynamic_index_buffer_handle;
-			index_buffer = rendergraph_resolve_buffer(encoder, index_buffer_handle.index().value());
+			index_buffer = rendergraph_resolve_buffer(encoder, index_buffer_handle);
 		}
 		else if (mesh->index_buffer)
 		{
@@ -517,7 +517,7 @@ namespace HGEGraphics
 		encoder->context->global_texture_table.push_back({ texture, {}, set, slot });
 	}
 
-	void set_global_texture_handle(RenderPassEncoder* encoder, resource_handle_t texture, int set, int slot)
+	void set_global_texture_handle(RenderPassEncoder* encoder, texture_handle_t texture, int set, int slot)
 	{
 		encoder->context->global_texture_table.push_back({ nullptr, texture, set, slot });
 	}

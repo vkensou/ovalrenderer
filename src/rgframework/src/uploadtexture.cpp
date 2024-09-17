@@ -15,9 +15,9 @@ struct WaitUploadTexture
 	int component;
 };
 
-uint64_t uploadKTXTexture(HGEGraphics::rendergraph_t& rg, WaitUploadTexture& waited, HGEGraphics::resource_handle_t texture_handle)
+uint64_t uploadKTXTexture(HGEGraphics::rendergraph_t& rg, WaitUploadTexture& waited, HGEGraphics::texture_handle_t texture_handle)
 {
-	auto uploadMip = [](HGEGraphics::rendergraph_t& rg, WaitUploadTexture& waited, HGEGraphics::resource_handle_t texture_handle, uint8_t mipmap, uint8_t slice, uint8_t face, int component, int textureComponent) -> uint64_t 
+	auto uploadMip = [](HGEGraphics::rendergraph_t& rg, WaitUploadTexture& waited, HGEGraphics::texture_handle_t texture_handle, uint8_t mipmap, uint8_t slice, uint8_t face, int component, int textureComponent) -> uint64_t 
 	{
 		auto texture = waited.texture;
 

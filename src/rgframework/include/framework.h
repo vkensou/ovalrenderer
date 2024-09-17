@@ -4,7 +4,7 @@
 #include "rendergraph.h"
 #include "HandmadeMath.h"
 
-typedef void (*oval_on_draw)(struct oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::resource_handle_t rg_back_buffer);
+typedef void (*oval_on_draw)(struct oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::texture_handle_t rg_back_buffer);
 typedef void (*oval_on_update)(struct oval_device_t* device);
 typedef void (*oval_on_imgui)(struct oval_device_t* device);
 

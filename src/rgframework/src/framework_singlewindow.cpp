@@ -458,7 +458,7 @@ HGEGraphics::Mesh* setupImGuiResources(oval_cgpu_device_t* device, HGEGraphics::
 	return imgui_mesh;
 }
 
-void renderImgui(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::resource_handle_t rg_back_buffer)
+void renderImgui(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::texture_handle_t rg_back_buffer)
 {
 	using namespace HGEGraphics;
 
@@ -514,9 +514,9 @@ void renderImgui(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg, HGE
 	}
 }
 
-uint64_t uploadKTXTexture(HGEGraphics::rendergraph_t& rg, WaitUploadTexture& waited, HGEGraphics::resource_handle_t texture_handle);
+uint64_t uploadKTXTexture(HGEGraphics::rendergraph_t& rg, WaitUploadTexture& waited, HGEGraphics::texture_handle_t texture_handle);
 
-uint64_t uploadTexture(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg, std::pmr::vector<HGEGraphics::resource_handle_t>& uploaded_texture_handles, WaitUploadTexture& waited)
+uint64_t uploadTexture(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg, std::pmr::vector<HGEGraphics::texture_handle_t>& uploaded_texture_handles, WaitUploadTexture& waited)
 {
 	uint64_t size = 0;
 	if (waited.loader || waited.ktxTexture)
@@ -557,7 +557,7 @@ void uploadResources(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg)
 
 	const uint32_t max_size = 1024 * 1024 * sizeof(uint32_t) * 10;
 	uint32_t uploaded = 0;
-	std::pmr::vector<HGEGraphics::resource_handle_t> uploaded_texture_handles(device->memory_resource);
+	std::pmr::vector<HGEGraphics::texture_handle_t> uploaded_texture_handles(device->memory_resource);
 	std::pmr::vector<HGEGraphics::buffer_handle_t> uploaded_buffer_handle(device->memory_resource);
 	uploaded_texture_handles.reserve(device->wait_upload_texture.size());
 	uploaded_buffer_handle.reserve(device->wait_upload_mesh.size() * 2);

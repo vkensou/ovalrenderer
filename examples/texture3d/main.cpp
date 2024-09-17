@@ -287,7 +287,7 @@ void on_imgui(oval_device_t* device)
 	ImGui::SliderFloat2("Light Dir", &app->lightDirEulerX, -180, 180);
 }
 
-void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::resource_handle_t rg_back_buffer)
+void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::texture_handle_t rg_back_buffer)
 {
 	using namespace HGEGraphics;
 

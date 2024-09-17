@@ -6,7 +6,7 @@ struct Application
 	oval_device_t* device;
 	HGEGraphics::Shader* shader;
 	HGEGraphics::Shader* light_shader;
-	HGEGraphics::resource_handle_t gbuffer;
+	HGEGraphics::texture_handle_t gbuffer;
 	CGPUSamplerId gbuffer_sampler = CGPU_NULLPTR;
 };
 
@@ -87,7 +87,7 @@ void on_imgui(oval_device_t* device)
 	}
 }
 
-void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::resource_handle_t rg_back_buffer)
+void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::texture_handle_t rg_back_buffer)
 {
 	using namespace HGEGraphics;
 

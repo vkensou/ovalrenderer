@@ -44,31 +44,8 @@ namespace HGEGraphics
 	ComputeShader* create_compute_shader(CGPUDeviceId device, const uint8_t* comp_data, uint32_t comp_length);
 	void free_compute_shader(ComputeShader* shader);
 
-	class resource_handle_t
-	{
-	public:
-		resource_handle_t() :m_index(std::nullopt) {}
-		resource_handle_t(uint16_t index) : m_index(index) {}
-		std::optional<uint16_t> index() const { return m_index; }
-
-	private:
-		friend struct recorder_i;
-
-	private:
-		std::optional<uint16_t> m_index;
-	};
-
-	class buffer_handle_t
-	{
-	public:
-		buffer_handle_t() :m_index(std::nullopt) {}
-		buffer_handle_t(uint16_t index) : m_index(index) {}
-		std::optional<uint16_t> index() const { return m_index; }
-		bool valid() { return m_index.has_value(); }
-
-	private:
-		std::optional<uint16_t> m_index;
-	};
+	typedef uint16_t texture_handle_t;
+	typedef uint16_t buffer_handle_t;
 
 	struct Buffer
 	{
@@ -127,7 +104,7 @@ namespace HGEGraphics
 	struct ShaderTextureBinder
 	{
 		Texture* texture;
-		resource_handle_t texture_handle;
+		texture_handle_t texture_handle;
 		int set, bind;
 	};
 
@@ -210,7 +187,7 @@ namespace HGEGraphics
 	void draw_procedure(RenderPassEncoder* encoder, Shader* shader, ECGPUPrimitiveTopology mesh_topology, uint32_t vertex_count);
 	void dispatch(RenderPassEncoder* encoder, ComputeShader* shader, uint32_t thread_x, uint32_t thread_y, uint32_t thread_z);
 	void set_global_texture(RenderPassEncoder* encoder, Texture* texture, int set, int slot);
-	void set_global_texture_handle(RenderPassEncoder* encoder, resource_handle_t texture, int set, int slot);
+	void set_global_texture_handle(RenderPassEncoder* encoder, texture_handle_t texture, int set, int slot);
 	void set_global_sampler(RenderPassEncoder* encoder, CGPUSamplerId sampler, int set, int slot);
 	void set_global_buffer(RenderPassEncoder* encoder, buffer_handle_t buffer, int set, int slot);
 	void set_global_buffer_with_offset_size(RenderPassEncoder* encoder, buffer_handle_t buffer, int set, int slot, uint64_t offset, uint64_t size);
