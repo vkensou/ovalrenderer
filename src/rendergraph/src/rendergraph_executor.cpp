@@ -299,6 +299,29 @@ namespace HGEGraphics
 
 	}
 
+	void execute_compute_pass(ExecutorContext& context, CompiledRenderGraph& compiledRenderGraph, const CompiledRenderPassNode& pass, RuntimePass& runtime, CGPUCommandBufferId cmd)
+	{
+		CGPUComputePassDescriptor pass_desc =
+		{
+			.name = pass.name
+		};
+		auto encoder = cgpu_cmd_begin_compute_pass(cmd, &pass_desc);
+
+		if (pass.executable)
+		{
+			RenderPassEncoder rg_encoder = {
+				.compute_encoder = encoder,
+				.context = &context,
+				.compiled_graph = &compiledRenderGraph,
+				.last_render_pipeline = 0,
+				.last_bind_resources = {0},
+			};
+			pass.executable(&rg_encoder, pass.passdata);
+		}
+
+		cgpu_cmd_end_compute_pass(cmd, encoder);
+	}
+
 	void execute_upload_texture_pass(ExecutorContext& context, CompiledRenderGraph& compiledRenderGraph, const CompiledRenderPassNode& pass, RuntimePass& runtime, CGPUCommandBufferId cmd)
 	{
 		auto& src_resource_node = compiledRenderGraph.resources[pass.staging_buffer];
@@ -417,6 +440,10 @@ namespace HGEGraphics
 			if (pass.type == PASS_TYPE_RENDER)
 			{
 				execute_render_pass(context, compiledRenderGraph, pass, runtime, cmd);
+			}
+			else if (pass.type == PASS_TYPE_COMPUTE)
+			{
+				execute_compute_pass(context, compiledRenderGraph, pass, runtime, cmd);
 			}
 			else if (pass.type == PASS_TYPE_UPLOAD_TEXTURE)
 			{

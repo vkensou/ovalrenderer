@@ -9,6 +9,7 @@
 #include "renderpasspool.h"
 #include "framebufferpool.h"
 #include "graphicspipelinepool.h"
+#include "computepipelinepool.h"
 #include "textureviewpool.h"
 #include "bufferpool.h"
 #include "descriptorsetpool.h"
@@ -35,12 +36,13 @@ namespace HGEGraphics
 
 	struct ComputeShader
 	{
+		CGPURootSignatureId root_sig;
 		CGPUShaderEntryDescriptor cs;
 	};
 
 	ComputeShader* create_compute_shader(CGPUDeviceId device, const std::string& compPath);
 	ComputeShader* create_compute_shader(CGPUDeviceId device, const uint8_t* comp_data, uint32_t comp_length);
-	void free_cmopute_shader(ComputeShader* shader);
+	void free_compute_shader(ComputeShader* shader);
 
 	class resource_handle_t
 	{
@@ -93,7 +95,7 @@ namespace HGEGraphics
 		bool prepared;
 	};
 
-	Mesh* create_mesh(CGPUDeviceId device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride);
+	Mesh* create_mesh(CGPUDeviceId device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, bool update_vertex_data_from_compute_shader, bool update_index_data_from_compute_shader);
 	Mesh* create_dynamic_mesh(ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride);
 	buffer_handle_t declare_dynamic_vertex_buffer(Mesh* mesh, rendergraph_t* rg, uint32_t count);
 	buffer_handle_t declare_dynamic_index_buffer(Mesh* mesh, rendergraph_t* rg, uint32_t count);
@@ -149,6 +151,7 @@ namespace HGEGraphics
 		RenerPassPool renderPassPool;
 		FramebufferPool framebufferPool;
 		GraphicsPipelinePool pipelinePool;
+		ComputePipelinePool computePipelinePool;
 		TextureViewPool textureViewPool;
 		BufferPool bufferPool;
 		CGPUCommandPoolId cmdPool = { CGPU_NULLPTR };
@@ -179,6 +182,7 @@ namespace HGEGraphics
 	struct RenderPassEncoder
 	{
 		CGPURenderPassEncoderId encoder;
+		CGPUComputePassEncoderId compute_encoder;
 		CGPUStateBufferId state_buffer;
 		CGPURasterStateEncoderId raster_state_encoder;
 		CGPURenderPassId render_pass;
@@ -187,6 +191,7 @@ namespace HGEGraphics
 		ExecutorContext* context;
 		CompiledRenderGraph* compiled_graph;
 		CGPURenderPipelineId last_render_pipeline;
+		CGPUComputePipelineId last_compute_pipeline;
 		CGPUDescriptorData last_bind_resources[4][64];
 		uint64_t last_buffer_offset_sizes[4][128];
 		CGPUTextureViewId textureviews[64] = {};
@@ -203,6 +208,7 @@ namespace HGEGraphics
 	void draw(RenderPassEncoder* encoder, Shader* shader, Mesh* mesh);
 	void draw_submesh(RenderPassEncoder* encoder, Shader* shader, Mesh* mesh, uint32_t index_count, uint32_t first_index, uint32_t vertex_count, uint32_t first_vertex);
 	void draw_procedure(RenderPassEncoder* encoder, Shader* shader, ECGPUPrimitiveTopology mesh_topology, uint32_t vertex_count);
+	void dispatch(RenderPassEncoder* encoder, ComputeShader* shader, uint32_t thread_x, uint32_t thread_y, uint32_t thread_z);
 	void set_global_texture(RenderPassEncoder* encoder, Texture* texture, int set, int slot);
 	void set_global_texture_handle(RenderPassEncoder* encoder, resource_handle_t texture, int set, int slot);
 	void set_global_sampler(RenderPassEncoder* encoder, CGPUSamplerId sampler, int set, int slot);

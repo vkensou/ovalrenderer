@@ -101,14 +101,21 @@ namespace HGEGraphics
 		ppl_shaders[0].stage = CGPU_SHADER_STAGE_COMPUTE;
 		ppl_shaders[0].entry = u8"main";
 		ppl_shaders[0].library = comp_shader;
+		CGPURootSignatureDescriptor rs_desc = {
+			.shaders = ppl_shaders,
+			.shader_count = 1
+		};
+		auto root_sig = cgpu_create_root_signature(device, &rs_desc);
 
 		auto shader = new ComputeShader();
+		shader->root_sig = root_sig;
 		shader->cs = ppl_shaders[0];
 		return shader;
 	}
 
-	void free_cmopute_shader(ComputeShader* shader)
+	void free_compute_shader(ComputeShader* shader)
 	{
+		cgpu_free_root_signature(shader->root_sig);
 		cgpu_free_shader_library(shader->cs.library);
 		delete shader;
 	}
@@ -128,7 +135,7 @@ namespace HGEGraphics
 		delete buffer;
 	}
 
-	Mesh* create_mesh(CGPUDeviceId device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride)
+	Mesh* create_mesh(CGPUDeviceId device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, bool update_vertex_data_from_compute_shader, bool update_index_data_from_compute_shader)
 	{
 		auto mesh = new Mesh();
 		mesh->vertex_layout = vertex_layout;
@@ -144,7 +151,7 @@ namespace HGEGraphics
 		CGPUBufferDescriptor vertex_buffer_desc = {};
 		vertex_buffer_desc.name = u8"vertex buffer";
 		vertex_buffer_desc.flags = CGPU_BCF_PERSISTENT_MAP_BIT;
-		vertex_buffer_desc.descriptors = CGPU_RESOURCE_TYPE_VERTEX_BUFFER;
+		vertex_buffer_desc.descriptors = update_vertex_data_from_compute_shader ? CGPU_RESOURCE_TYPE_VERTEX_BUFFER | CGPU_RESOURCE_TYPE_RW_BUFFER : CGPU_RESOURCE_TYPE_VERTEX_BUFFER;
 		vertex_buffer_desc.memory_usage = CGPU_MEM_USAGE_GPU_ONLY;
 		vertex_buffer_desc.size = vertex_count * mesh->vertex_stride;
 		mesh->vertex_buffer = create_buffer(device, vertex_buffer_desc);
@@ -154,7 +161,7 @@ namespace HGEGraphics
 			CGPUBufferDescriptor index_buffer_desc = {};
 			index_buffer_desc.name = u8"index buffer";
 			index_buffer_desc.flags = CGPU_BCF_PERSISTENT_MAP_BIT;
-			index_buffer_desc.descriptors = CGPU_RESOURCE_TYPE_INDEX_BUFFER;
+			index_buffer_desc.descriptors = update_index_data_from_compute_shader ? CGPU_RESOURCE_TYPE_INDEX_BUFFER | CGPU_RESOURCE_TYPE_RW_BUFFER : CGPU_RESOURCE_TYPE_INDEX_BUFFER;
 			index_buffer_desc.memory_usage = CGPU_MEM_USAGE_GPU_ONLY;
 			index_buffer_desc.size = index_count * mesh->index_stride;
 			mesh->index_buffer = create_buffer(device, index_buffer_desc);
@@ -304,14 +311,14 @@ namespace HGEGraphics
 		}
 	}
 
-	void update_descriptor_set(RenderPassEncoder* encoder, Shader* shader)
+	void update_descriptor_set(RenderPassEncoder* encoder, CGPURootSignatureId root_sig, bool is_graphics)
 	{
-		for (uint32_t i = 0; i < std::min(4u, shader->root_sig->table_count); ++i)
+		for (uint32_t i = 0; i < std::min(4u, root_sig->table_count); ++i)
 		{
-			auto& table = shader->root_sig->tables[i];
+			auto& table = root_sig->tables[i];
 			CGPUDescriptorSetDescriptor dset_desc =
 			{
-				.root_signature = shader->root_sig,
+				.root_signature = root_sig,
 				.set_index = table.set_index,
 			};
 			
@@ -369,7 +376,7 @@ namespace HGEGraphics
 						}
 					}
 				}
-				else if (res.type == CGPU_RESOURCE_TYPE_UNIFORM_BUFFER)
+				else if (res.type == CGPU_RESOURCE_TYPE_UNIFORM_BUFFER || res.type == CGPU_RESOURCE_TYPE_RW_BUFFER)
 				{
 					for (auto iter = encoder->context->global_buffer_table.rbegin(); iter != encoder->context->global_buffer_table.rend(); ++iter)
 					{
@@ -401,7 +408,10 @@ namespace HGEGraphics
 				if (dset_dirty || offset_size_dirty)
 				{
 					cgpu_update_descriptor_set(dset->handle, datas, data_count);
-					cgpu_render_encoder_bind_descriptor_set(encoder->encoder, dset->handle);
+					if (is_graphics)
+						cgpu_render_encoder_bind_descriptor_set(encoder->encoder, dset->handle);
+					else
+						cgpu_compute_encoder_bind_descriptor_set(encoder->compute_encoder, dset->handle);
 					memcpy(encoder->last_bind_resources[i], datas, sizeof(CGPUDescriptorData) * data_count);
 					memcpy(encoder->last_buffer_offset_sizes[i], encoder->buffer_offset_sizes, sizeof(float) * 2 * offset_size_count);
 				}
@@ -455,7 +465,7 @@ namespace HGEGraphics
 		if (!mesh->prepared)
 			return;
 		update_render_pipeline(encoder, shader, mesh->prim_topology, mesh->vertex_layout);
-		update_descriptor_set(encoder, shader);
+		update_descriptor_set(encoder, shader->root_sig, true);
 		update_mesh(encoder, mesh);
 		if (encoder->last_index_buffer)
 			cgpu_render_encoder_draw_indexed(encoder->encoder, mesh->index_count, 0, 0);
@@ -468,7 +478,7 @@ namespace HGEGraphics
 		if (!mesh->prepared)
 			return;
 		update_render_pipeline(encoder, shader, mesh->prim_topology, mesh->vertex_layout);
-		update_descriptor_set(encoder, shader);
+		update_descriptor_set(encoder, shader->root_sig, true);
 		update_mesh(encoder, mesh);
 		if (encoder->last_index_buffer)
 			cgpu_render_encoder_draw_indexed(encoder->encoder, index_count, first_index, first_vertex);
@@ -480,8 +490,26 @@ namespace HGEGraphics
 	void draw_procedure(RenderPassEncoder* encoder, Shader* shader, ECGPUPrimitiveTopology mesh_topology, uint32_t vertex_count)
 	{
 		update_render_pipeline(encoder, shader, mesh_topology, procedure_vertex_layout);
-		update_descriptor_set(encoder, shader);
+		update_descriptor_set(encoder, shader->root_sig, true);
 		cgpu_render_encoder_draw(encoder->encoder, vertex_count, 0);
+	}
+
+	void update_compute_pipeline(RenderPassEncoder* encoder, ComputeShader* shader)
+	{
+		auto pipeline = encoder->context->computePipelinePool.getComputePipeline(shader);
+		if (pipeline && pipeline->handle != encoder->last_compute_pipeline)
+		{
+			cgpu_compute_encoder_bind_pipeline(encoder->compute_encoder, pipeline->handle);
+			encoder->last_compute_pipeline = pipeline->handle;
+			memset(encoder->last_bind_resources, 0, sizeof(encoder->last_bind_resources));
+		}
+	}
+
+	void dispatch(RenderPassEncoder* encoder, ComputeShader* shader, uint32_t thread_x, uint32_t thread_y, uint32_t thread_z)
+	{
+		update_compute_pipeline(encoder, shader);
+		update_descriptor_set(encoder, shader->root_sig, false);
+		cgpu_compute_encoder_dispatch(encoder->compute_encoder, thread_x, thread_y, thread_z);
 	}
 
 	void set_global_texture(RenderPassEncoder* encoder, Texture* texture, int set, int slot)
@@ -516,7 +544,7 @@ namespace HGEGraphics
 	}
 
 	ExecutorContext::ExecutorContext(CGPUDeviceId device, CGPUQueueId gfx_queue, bool profile, std::pmr::memory_resource* memory_resource)
-		: device(device), memory_resource(memory_resource), renderPassPool(device, memory_resource), framebufferPool(device, memory_resource), texturePool(device, gfx_queue, nullptr, memory_resource), pipelinePool(device, nullptr, memory_resource), textureViewPool(nullptr, memory_resource), bufferPool(device, nullptr, memory_resource), descriptorSetPool(device, memory_resource), allocated_dsets(memory_resource)
+		: device(device), memory_resource(memory_resource), renderPassPool(device, memory_resource), framebufferPool(device, memory_resource), texturePool(device, gfx_queue, nullptr, memory_resource), pipelinePool(device, nullptr, memory_resource), computePipelinePool(device, nullptr, memory_resource), textureViewPool(nullptr, memory_resource), bufferPool(device, nullptr, memory_resource), descriptorSetPool(device, memory_resource), allocated_dsets(memory_resource)
 		, cmds(memory_resource), allocated_cmds(memory_resource), global_texture_table(memory_resource), global_sampler_table(memory_resource), global_buffer_table(memory_resource)
 	{
 		cmdPool = cgpu_create_command_pool(gfx_queue, CGPU_NULLPTR);
@@ -543,6 +571,7 @@ namespace HGEGraphics
 		textureViewPool.newFrame();
 		bufferPool.newFrame();
 		pipelinePool.newFrame();
+		computePipelinePool.newFrame();
 		renderPassPool.newFrame();
 		texturePool.newFrame();
 
@@ -576,6 +605,7 @@ namespace HGEGraphics
 		framebufferPool.destroy();
 		textureViewPool.destroy();
 		pipelinePool.destroy();
+		computePipelinePool.destroy();
 		renderPassPool.destroy();
 		texturePool.destroy();
 		bufferPool.destroy();

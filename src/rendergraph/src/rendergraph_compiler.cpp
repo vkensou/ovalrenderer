@@ -142,6 +142,10 @@ namespace HGEGraphics
 				compiledPass.depthAttachment = pass.render_context.depthAttachment;
 				compiledPass.executable = pass.render_context.executable;
 			}
+			else if (pass.type == PASS_TYPE_COMPUTE)
+			{
+				compiledPass.executable = pass.compute_context.executable;
+			}
 			else if (pass.type == PASS_TYPE_UPLOAD_TEXTURE)
 			{
 				compiledPass.staging_buffer = pass.upload_texture_context.staging_buffer.index().value();

@@ -106,6 +106,7 @@ namespace HGEGraphics
 	{
 		PASS_TYPE_HOLDON,
 		PASS_TYPE_RENDER,
+		PASS_TYPE_COMPUTE,
 		PASS_TYPE_UPLOAD_TEXTURE,
 		PASS_TYPE_UPLOAD_BUFFER,
 		PASS_TYPE_PRESENT,
@@ -126,6 +127,11 @@ namespace HGEGraphics
 			int colorAttachmentCount{ 0 };
 			std::array<ColorAttachmentInfo, 8> colorAttachments;
 			DepthAttachmentInfo depthAttachment;
+			renderpass_executable executable;
+		};
+
+		struct compute_context_t
+		{
 			renderpass_executable executable;
 		};
 
@@ -158,6 +164,7 @@ namespace HGEGraphics
 		union
 		{
 			render_context_t render_context;
+			compute_context_t compute_context;
 			present_context_t present_context;
 			upload_texture_context_t upload_texture_context;
 			upload_buffer_context_t upload_buffer_context;
@@ -179,7 +186,14 @@ namespace HGEGraphics
 	void renderpass_add_depth_attachment(renderpass_builder_t* self, resource_handle_t texture, ECGPULoadAction depth_load_action, float clearDepth, ECGPUStoreAction depth_store_action, ECGPULoadAction stencil_load_action, uint8_t clearStencil, ECGPUStoreAction stencil_store_action);
 	void renderpass_sample(renderpass_builder_t* self, resource_handle_t texture);
 	void renderpass_use_buffer(renderpass_builder_t* self, buffer_handle_t buffer);
+	void renderpass_use_buffer_as(renderpass_builder_t* self, buffer_handle_t buffer, ECGPUResourceState state);
 	void renderpass_set_executable(renderpass_builder_t* self, renderpass_executable executable, size_t passdata_size, void** passdata);
+	void computepass_sample(renderpass_builder_t* self, resource_handle_t texture);
+	void computepass_use_buffer(renderpass_builder_t* self, buffer_handle_t buffer);
+	void computepass_use_buffer_as(renderpass_builder_t* self, buffer_handle_t buffer, ECGPUResourceState state);
+	void computepass_readwrite_texture(renderpass_builder_t* self, resource_handle_t texture);
+	void computepass_readwrite_buffer(renderpass_builder_t* self, buffer_handle_t buffer);
+	void computepass_set_executable(renderpass_builder_t* self, renderpass_executable executable, size_t passdata_size, void** passdata);
 
 	void rg_texture_set_extent(rendergraph_t* self, resource_handle_t texture, uint32_t width, uint32_t height, uint32_t depth = 1);
 	void rg_texture_set_format(rendergraph_t* self, resource_handle_t texture, ECGPUFormat format);
@@ -210,6 +224,7 @@ namespace HGEGraphics
 
 	void rendergraph_reset(rendergraph_t* self);
 	renderpass_builder_t rendergraph_add_renderpass(rendergraph_t* self, const char8_t* name);
+	renderpass_builder_t rendergraph_add_computepass(rendergraph_t* self, const char8_t* name);
 	renderpass_builder_t rendergraph_add_holdpass(rendergraph_t* self, const char8_t* name);
 	void rendergraph_add_uploadtexturepass(rendergraph_t* self, const char8_t* name, resource_handle_t texture, uint8_t mipmap, uint8_t slice, uploadpass_executable executable, size_t passdata_size, void** passdata);
 	void rendergraph_add_uploadtexturepass_ex(rendergraph_t* self, const char8_t* name, resource_handle_t texture, uint8_t mipmap, uint8_t slice, uint64_t size, uint64_t offset, void* data, uploadpass_executable executable, size_t passdata_size, void** passdata);
