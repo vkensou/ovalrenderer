@@ -2,6 +2,7 @@
 
 #include "stdint.h"
 #include "rendergraph.h"
+#include "renderer.h"
 #include "HandmadeMath.h"
 
 typedef void (*oval_on_draw)(struct oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::texture_handle_t rg_back_buffer);

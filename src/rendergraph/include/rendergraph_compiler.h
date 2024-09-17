@@ -5,7 +5,7 @@
 namespace HGEGraphics
 {
 	class TextureWrap;
-	class Buffer;
+	class BufferWrap;
 
 	struct CompiledResourceNode
 	{

@@ -7,10 +7,15 @@
 #include <optional>
 #include "texturepool.h"
 #include <functional>
-#include "renderer.h"
+#include "resource_type.h"
 
 namespace HGEGraphics
 {
+	struct Shader;
+	struct Backbuffer;
+	struct Buffer;
+	struct Texture;
+
 	enum class ResourceType
 	{
 		Texture,

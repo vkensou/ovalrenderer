@@ -15,6 +15,7 @@
 #include "descriptorsetpool.h"
 #include <optional>
 #include "profiler.h"
+#include "resource_type.h"
 
 namespace HGEGraphics
 {
@@ -43,20 +44,6 @@ namespace HGEGraphics
 	ComputeShader* create_compute_shader(CGPUDeviceId device, const std::string& compPath);
 	ComputeShader* create_compute_shader(CGPUDeviceId device, const uint8_t* comp_data, uint32_t comp_length);
 	void free_compute_shader(ComputeShader* shader);
-
-	typedef uint32_t index_type_t;
-	const index_type_t MAX_INDEX = UINT32_MAX - 2;
-
-	struct texture_handle_t
-	{
-		index_type_t index;
-	};
-
-	struct buffer_handle_t
-	{
-		index_type_t index;
-	};
-
 
 	struct Buffer
 	{

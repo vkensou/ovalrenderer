@@ -1,6 +1,7 @@
 #include "rendergraph.h"
 
 #include <cassert>
+#include "renderer.h"
 
 namespace HGEGraphics
 {
