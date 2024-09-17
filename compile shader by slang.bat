@@ -18,3 +18,7 @@
 
 .\tools\slang\slangc examples\texture3d\texture3d.slang -profile sm_5_0 -capability SPIRV_1_3 -entry vert -o examples\texture3d\texture3d.vert.spv -O3 -emit-spirv-directly -matrix-layout-row-major -I examples\shaderlibrary
 .\tools\slang\slangc examples\texture3d\texture3d.slang -profile sm_5_0 -capability SPIRV_1_3 -entry frag -o examples\texture3d\texture3d.frag.spv -O3 -emit-spirv-directly -matrix-layout-row-major -I examples\shaderlibrary
+
+.\tools\slang\slangc examples\computeparticle\particle.slang -profile sm_5_0 -capability SPIRV_1_3 -entry vert -o examples\computeparticle\particle.vert.spv -O3 -emit-spirv-directly -matrix-layout-row-major -I examples\shaderlibrary
+.\tools\slang\slangc examples\computeparticle\particle.slang -profile sm_5_0 -capability SPIRV_1_3 -entry frag -o examples\computeparticle\particle.frag.spv -O3 -emit-spirv-directly -matrix-layout-row-major -I examples\shaderlibrary
+.\tools\slang\slangc examples\computeparticle\particle_update.slang -profile sm_5_0 -capability SPIRV_1_3 -entry comp -o examples\computeparticle\particle_update.comp.spv -O3 -emit-spirv-directly -matrix-layout-row-major -I examples\shaderlibrary

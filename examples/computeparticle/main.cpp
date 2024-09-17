@@ -20,6 +20,14 @@ struct Particle
 	HMM_Vec4 gradientPos;						// Texture coordinates for the gradient ramp map
 };
 
+struct ParticleUpdateData
+{
+	float deltaT;
+	float destX;
+	float destY;
+	int particleCount;
+};
+
 struct Application
 {
 	oval_device_t* device;
@@ -29,8 +37,10 @@ struct Application
 	ObjectData object_data;
 	HGEGraphics::Mesh* particle_mesh;
 	HGEGraphics::Shader* particle;
+	HGEGraphics::ComputeShader* particle_updater;
 	HGEGraphics::Texture* colormap;
 	HGEGraphics::Texture* gradientmap;
+	ParticleUpdateData particle_update_data;
 };
 
 void _init_resource(Application& app)
@@ -56,6 +66,7 @@ void _init_resource(Application& app)
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
 	app.particle = HGEGraphics::create_shader(app.device->device, "computeparticle/particle.vert.spv", "computeparticle/particle.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.particle_updater = HGEGraphics::create_compute_shader(app.device->device, "computeparticle/particle_update.comp.spv");
 
 	app.colormap = oval_load_texture(app.device, u8"media/textures/particle01_rgba.ktx", false);
 	app.gradientmap = oval_load_texture(app.device, u8"media/textures/particle_gradient_rgba.ktx", false);
@@ -94,7 +105,7 @@ void _init_resource(Application& app)
 			{ u8"TEXCOORD1", 1, CGPU_FORMAT_R32G32B32A32_SFLOAT, 0, sizeof(float) * 4, sizeof(float) * 4, CGPU_INPUT_RATE_VERTEX },
 		}
 	};
-	app.particle_mesh = oval_create_mesh_from_buffer(app.device, PARTICLE_COUNT, 0, CGPU_PRIM_TOPO_POINT_LIST, particle_vertex_layout, 0, (uint8_t*)init_particles.data(), nullptr);
+	app.particle_mesh = oval_create_mesh_from_buffer(app.device, PARTICLE_COUNT, 0, CGPU_PRIM_TOPO_POINT_LIST, particle_vertex_layout, 0, (uint8_t*)init_particles.data(), nullptr, true, false);
 }
 
 void _free_resource(Application& app)
@@ -116,6 +127,9 @@ void _free_resource(Application& app)
 
 	free_shader(app.particle);
 	app.particle = nullptr;
+
+	free_compute_shader(app.particle_updater);
+	app.particle_updater = nullptr;
 }
 
 void _init_world(Application& app)
@@ -161,6 +175,11 @@ void on_update(oval_device_t* device)
 	depth = duration * 0.15f;
 	depth -= (int)depth;
 	app->object_data.viewPos = HMM_V4V(eye, depth);
+
+	app->particle_update_data.deltaT = device->deltaTime * 2.5f;
+	app->particle_update_data.destX = 0;
+	app->particle_update_data.destY = 0;
+	app->particle_update_data.particleCount = PARTICLE_COUNT;
 }
 
 void on_imgui(oval_device_t* device)
@@ -177,9 +196,42 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 
 	Application* app = (Application*)device->descriptor.userdata;
 
+	buffer_handle_t particle_vertex_buffer_handle;
+	if (app->particle_mesh->prepared)
+	{
+		particle_vertex_buffer_handle = rendergraph_declare_buffer(&rg);
+		rg_buffer_import(&rg, particle_vertex_buffer_handle, app->particle_mesh->vertex_buffer);
+
+		auto particl_update_ubo_handle = rendergraph_declare_uniform_buffer_quick(&rg, sizeof(ParticleUpdateData), &app->particle_update_data);
+
+		auto upvPassBuilder = rendergraph_add_computepass(&rg, u8"update particle vertex");
+		computepass_readwrite_buffer(&upvPassBuilder, particle_vertex_buffer_handle);
+		computepass_use_buffer(&upvPassBuilder, particl_update_ubo_handle);
+		struct ComputePassPassData
+		{
+			Application* app;
+			buffer_handle_t particle_vertex_buffer_handle;
+			buffer_handle_t particl_update_ubo_handle;
+		};
+		ComputePassPassData* passdata1;
+		computepass_set_executable(&upvPassBuilder, [](RenderPassEncoder* encoder, void* passdata)
+			{
+				ComputePassPassData* resolved_passdata = (ComputePassPassData*)passdata;
+				Application& app = *resolved_passdata->app;
+				set_global_buffer(encoder, resolved_passdata->particle_vertex_buffer_handle, 0, 0);
+				set_global_buffer(encoder, resolved_passdata->particl_update_ubo_handle, 0, 1);
+				dispatch(encoder, app.particle_updater, PARTICLE_COUNT / 256, 1, 1);
+			}, sizeof(ComputePassPassData), (void**)&passdata1);
+		passdata1->app = app;
+		passdata1->particle_vertex_buffer_handle = particle_vertex_buffer_handle;
+		passdata1->particl_update_ubo_handle = particl_update_ubo_handle;
+	}
+
 	auto passBuilder = rendergraph_add_renderpass(&rg, u8"Main Pass");
 	uint32_t color = 0xff000000;
 	renderpass_add_color_attachment(&passBuilder, rg_back_buffer, ECGPULoadAction::CGPU_LOAD_ACTION_CLEAR, color, ECGPUStoreAction::CGPU_STORE_ACTION_STORE);
+	if (particle_vertex_buffer_handle.valid())
+		renderpass_use_buffer_as(&passBuilder, particle_vertex_buffer_handle, CGPU_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
 	struct MainPassPassData
 	{

@@ -1233,17 +1233,17 @@ HGEGraphics::Mesh* oval_load_mesh(oval_device_t* device, const char8_t* filepath
 			{ u8"TEXCOORD", 1, CGPU_FORMAT_R32G32_SFLOAT, 0, sizeof(float) * 6, sizeof(float) * 2, CGPU_INPUT_RATE_VERTEX },
 		}
 	};
-	auto mesh = HGEGraphics::create_mesh(device->device, data->size(), (indices ? indices->size() : 0), CGPU_PRIM_TOPO_TRI_LIST, mesh_vertex_layout, (indices ? sizeof(uint32_t) : 0));
+	auto mesh = HGEGraphics::create_mesh(device->device, data->size(), (indices ? indices->size() : 0), CGPU_PRIM_TOPO_TRI_LIST, mesh_vertex_layout, (indices ? sizeof(uint32_t) : 0), false, false);
 
 	D->wait_upload_mesh.push({ mesh, data, indices, nullptr, nullptr, mesh->vertices_count * mesh->vertex_stride, mesh->index_count * mesh->index_stride });
 
 	return mesh;
 }
 
-HGEGraphics::Mesh* oval_create_mesh_from_buffer(oval_device_t* device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, const uint8_t* vertex_data, const uint8_t* index_data)
+HGEGraphics::Mesh* oval_create_mesh_from_buffer(oval_device_t* device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, const uint8_t* vertex_data, const uint8_t* index_data, bool update_vertex_data_from_compute_shader, bool update_index_data_from_compute_shader)
 {
 	auto D = (oval_cgpu_device_t*)device;
-	auto mesh = HGEGraphics::create_mesh(device->device, vertex_count, index_count, prim_topology, vertex_layout, index_stride);
+	auto mesh = HGEGraphics::create_mesh(device->device, vertex_count, index_count, prim_topology, vertex_layout, index_stride, update_vertex_data_from_compute_shader, update_index_data_from_compute_shader);
 
 	auto vertex_raw_data = malloc(vertex_count * mesh->vertex_stride);
 	memcpy(vertex_raw_data, vertex_data, vertex_count * mesh->vertex_stride);
