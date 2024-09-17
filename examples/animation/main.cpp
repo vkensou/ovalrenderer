@@ -47,11 +47,9 @@ struct Application
 	HGEGraphics::Shader* shader;
 	CGPUSamplerId texture_sampler = CGPU_NULLPTR;
 	HGEGraphics::Texture* color_map;
-	HGEGraphics::Texture* cubemap;
 	HGEGraphics::Mesh* mesh1;
 	HGEGraphics::Mesh* mesh2;
 	HGEGraphics::Mesh* mesh3;
-	HGEGraphics::buffer_handle_t ubo_handle;
 	std::array<ObjectData, 5> objects;
 	std::array<BallData, 3> balls;
 	std::array<HGEGraphics::Mesh*, 5> meshs;
@@ -94,7 +92,6 @@ void _init_resource(Application& app)
 	app.texture_sampler = cgpu_create_sampler(app.device->device, &texture_sampler_desc);
 
 	app.color_map = oval_load_texture(app.device, u8"media/textures/TilesGray512.ktx", true);
-	app.cubemap = oval_load_texture(app.device, u8"media/textures/uffizi_cube.ktx", true);
 
 	app.mesh1 = oval_load_mesh(app.device, u8"media/models/PenroseStairs-Top.obj");
 	app.mesh2 = oval_load_mesh(app.device, u8"media/models/PenroseStairs-Bottom.obj");
@@ -105,9 +102,6 @@ void _free_resource(Application& app)
 {
 	free_texture(app.color_map);
 	app.color_map = nullptr;
-
-	free_texture(app.cubemap);
-	app.cubemap = nullptr;
 
 	free_mesh(app.mesh1);
 	app.mesh1 = nullptr;
@@ -258,12 +252,7 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 
 	Application* app = (Application*)device->descriptor.userdata;
 
-	auto ubo_handle = rendergraph_declare_buffer(&rg);
-	app->ubo_handle = ubo_handle;
-	rg_buffer_set_size(&rg, ubo_handle, app->objects.size() * sizeof(ObjectData));
-	rg_buffer_set_type(&rg, ubo_handle, CGPU_RESOURCE_TYPE_UNIFORM_BUFFER);
-	rg_buffer_set_usage(&rg, ubo_handle, ECGPUMemoryUsage::CGPU_MEM_USAGE_GPU_ONLY);
-	rendergraph_add_uploadbufferpass_ex(&rg, u8"upload ubo", ubo_handle, app->objects.size() * sizeof(ObjectData), 0, app->objects.data(), nullptr, 0, nullptr);
+	auto ubo_handle = rendergraph_declare_uniform_buffer_quick(&rg, app->objects.size() * sizeof(ObjectData), app->objects.data());
 
 	auto depth_handle = rendergraph_declare_texture(&rg);
 	rg_texture_set_extent(&rg, depth_handle, rg_texture_get_width(&rg, rg_back_buffer), rg_texture_get_height(&rg, rg_back_buffer));

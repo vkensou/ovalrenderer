@@ -1,4 +1,4 @@
 [submodule "cgpu"]
 	path = cgpu
-	url = F:/code2/dodo/cgpu.git
-	branch = feature/render_graph
+	url = https://github.com/vkensou/cgpu.git
+	branch = master

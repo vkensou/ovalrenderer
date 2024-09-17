@@ -32,6 +32,11 @@ namespace HGEGraphics
 		self->passes.emplace_back(name, PASS_TYPE_RENDER, self->allocator.resource());
 		return renderpass_builder_t(self, &(self->passes.back()), self->passes.size() - 1);
 	}
+	renderpass_builder_t rendergraph_add_computepass(rendergraph_t* self, const char8_t* name)
+	{
+		self->passes.emplace_back(name, PASS_TYPE_COMPUTE, self->allocator.resource());
+		return renderpass_builder_t(self, &(self->passes.back()), self->passes.size() - 1);
+	}
 	renderpass_builder_t rendergraph_add_holdpass(rendergraph_t* self, const char8_t* name)
 	{
 		self->passes.emplace_back(name, PASS_TYPE_HOLDON, self->allocator.resource());
@@ -72,7 +77,8 @@ namespace HGEGraphics
 		auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
 		const uint64_t xBlocksCount = mipedSize(usedTextureNode->width, mipmap) / FormatUtil_WidthOfBlock(usedTextureNode->format);
 		const uint64_t yBlocksCount = mipedSize(usedTextureNode->height, mipmap) / FormatUtil_HeightOfBlock(usedTextureNode->format);
-		const uint64_t bufferSize = xBlocksCount * yBlocksCount * FormatUtil_BitSizeOfBlock(usedTextureNode->format) / sizeof(uint8_t);
+		const uint64_t zBlocksCount = mipedSize(usedTextureNode->depth, mipmap);
+		const uint64_t bufferSize = xBlocksCount * yBlocksCount * zBlocksCount * FormatUtil_BitSizeOfBlock(usedTextureNode->format) / sizeof(uint8_t);
 		assert(bufferSize >= size + offset);
 		rg_buffer_set_size(self, staging_buffer, bufferSize);
 		rg_buffer_set_type(self, staging_buffer, CGPU_RESOURCE_TYPE_NONE);
@@ -174,6 +180,7 @@ namespace HGEGraphics
 		auto& resourceNode = self->resources.back();
 		resourceNode.width = 0;
 		resourceNode.height = 0;
+		resourceNode.depth = 0;
 		resourceNode.mipCount = 1;
 		resourceNode.arraySize = 1;
 		resourceNode.mipLevel = 0;
@@ -188,6 +195,7 @@ namespace HGEGraphics
 		resourceNode.manageType = ManageType::Imported;
 		resourceNode.width = imported->handle->info->width;
 		resourceNode.height = imported->handle->info->height;
+		resourceNode.depth = imported->handle->info->depth;
 		resourceNode.format = imported->handle->info->format;
 		resourceNode.mipCount = imported->handle->info->mip_levels;
 		resourceNode.arraySize = imported->handle->info->array_size_minus_one + 1;
@@ -205,6 +213,7 @@ namespace HGEGraphics
 		resourceNode.manageType = ManageType::Imported;
 		resourceNode.width = imported->texture.handle->info->width;
 		resourceNode.height = imported->texture.handle->info->height;
+		resourceNode.depth = imported->texture.handle->info->depth;
 		resourceNode.format = imported->texture.handle->info->format;
 		resourceNode.mipCount = imported->texture.handle->info->mip_levels;
 		resourceNode.arraySize = imported->texture.handle->info->array_size_minus_one + 1;
@@ -220,6 +229,40 @@ namespace HGEGraphics
 		resource.width = 0;
 		resource.memoryUsage = CGPU_MEM_USAGE_UNKNOWN;
 		return buffer_handle_t(self->resources.size() - 1);
+	}
+	buffer_handle_t rendergraph_declare_uniform_buffer_quick(rendergraph_t* self, uint32_t size, void* data)
+	{
+		auto nextPowerOfTwo = [](uint32_t n) -> uint32_t
+			{
+				if (n == 0)
+				{
+					return 1;
+				}
+
+				// Decrement n to handle the exact power of 2 case.
+				n--;
+
+				// Set all bits after the highest set bit
+				n |= n >> 1;
+				n |= n >> 2;
+				n |= n >> 4;
+				n |= n >> 8;
+				n |= n >> 16;
+
+				// Increment n to get next power of 2
+				return n + 1;
+			};
+
+		self->resources.push_back(ResourceNode());
+		auto& resource = self->resources.back();
+		resource.resourceType = ResourceType::Buffer;
+		resource.memoryUsage = CGPU_MEM_USAGE_UNKNOWN;
+		resource.size = nextPowerOfTwo(size);
+		resource.bufferType = CGPU_RESOURCE_TYPE_UNIFORM_BUFFER;
+		resource.memoryUsage = ECGPUMemoryUsage::CGPU_MEM_USAGE_GPU_ONLY;
+		auto ubo_handle = buffer_handle_t(self->resources.size() - 1);
+		rendergraph_add_uploadbufferpass_ex(self, u8"quick upload ubo", ubo_handle, resource.size, 0, data, nullptr, 0, nullptr);
+		return ubo_handle;
 	}
 	resource_handle_t rendergraph_declare_texture_subresource(rendergraph_t* self, resource_handle_t parent, uint8_t mipmap, uint8_t slice)
 	{
@@ -240,6 +283,7 @@ namespace HGEGraphics
 		resourceNode.manageType = ManageType::SubResource;
 		resourceNode.width = textureNode->width;
 		resourceNode.height = textureNode->height;
+		resourceNode.depth = textureNode->depth;
 		resourceNode.format = textureNode->format;
 		resourceNode.mipCount = textureNode->mipCount;
 		resourceNode.arraySize = textureNode->arraySize;
@@ -318,12 +362,22 @@ namespace HGEGraphics
 		assert(resourceNode.resourceType == ResourceType::Buffer);
 
 		ECGPUResourceState state = CGPU_RESOURCE_STATE_UNDEFINED;
-		if (resourceNode.bufferType == CGPU_RESOURCE_TYPE_VERTEX_BUFFER)
+		if (resourceNode.bufferType & CGPU_RESOURCE_TYPE_VERTEX_BUFFER)
 			state = CGPU_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
-		else if (resourceNode.bufferType == CGPU_RESOURCE_TYPE_INDEX_BUFFER)
+		else if (resourceNode.bufferType & CGPU_RESOURCE_TYPE_INDEX_BUFFER)
 			state = CGPU_RESOURCE_STATE_INDEX_BUFFER;
-		else if (resourceNode.bufferType == CGPU_RESOURCE_TYPE_UNIFORM_BUFFER)
+		else if (resourceNode.bufferType & CGPU_RESOURCE_TYPE_UNIFORM_BUFFER)
 			state = CGPU_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+		assert(state != CGPU_RESOURCE_STATE_UNDEFINED);
+
+		auto edge = rendergraph_add_edge(self->renderGraph, buffer.index().value(), self->passIndex, state);
+		self->passNode->reads.push_back(edge);
+	}
+	void renderpass_use_buffer_as(renderpass_builder_t* self, buffer_handle_t buffer, ECGPUResourceState state)
+	{
+		assert(buffer.index().has_value());
+		auto& resourceNode = self->renderGraph->resources[buffer.index().value()];
+		assert(resourceNode.resourceType == ResourceType::Buffer);
 		assert(state != CGPU_RESOURCE_STATE_UNDEFINED);
 
 		auto edge = rendergraph_add_edge(self->renderGraph, buffer.index().value(), self->passIndex, state);
@@ -334,6 +388,60 @@ namespace HGEGraphics
 		self->passNode->render_context.executable = executable;
 		allocate_passdata(self->renderGraph, self->passNode, passdata_size, passdata);
 	}
+	void computepass_sample(renderpass_builder_t* self, resource_handle_t texture)
+	{
+		auto edge = rendergraph_add_edge(self->renderGraph, texture.index().value(), self->passIndex, CGPU_RESOURCE_STATE_SHADER_RESOURCE);
+		self->passNode->reads.push_back(edge);
+	}
+	void computepass_use_buffer(renderpass_builder_t* self, buffer_handle_t buffer)
+	{
+		assert(buffer.index().has_value());
+		auto& resourceNode = self->renderGraph->resources[buffer.index().value()];
+		assert(resourceNode.resourceType == ResourceType::Buffer);
+
+		ECGPUResourceState state = CGPU_RESOURCE_STATE_UNDEFINED;
+		if (resourceNode.bufferType == CGPU_RESOURCE_TYPE_VERTEX_BUFFER)
+			state = CGPU_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+		else if (resourceNode.bufferType == CGPU_RESOURCE_TYPE_INDEX_BUFFER)
+			state = CGPU_RESOURCE_STATE_INDEX_BUFFER;
+		else if (resourceNode.bufferType == CGPU_RESOURCE_TYPE_UNIFORM_BUFFER)
+			state = CGPU_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER;
+		else if (resourceNode.bufferType == CGPU_RESOURCE_TYPE_RW_BUFFER)
+			state = CGPU_RESOURCE_STATE_UNORDERED_ACCESS;
+		assert(state != CGPU_RESOURCE_STATE_UNDEFINED);
+
+		auto edge = rendergraph_add_edge(self->renderGraph, buffer.index().value(), self->passIndex, state);
+		self->passNode->reads.push_back(edge);
+	}
+	void computepass_use_buffer_as(renderpass_builder_t* self, buffer_handle_t buffer, ECGPUResourceState state)
+	{
+		assert(buffer.index().has_value());
+		auto& resourceNode = self->renderGraph->resources[buffer.index().value()];
+		assert(resourceNode.resourceType == ResourceType::Buffer);
+		assert(state != CGPU_RESOURCE_STATE_UNDEFINED);
+
+		auto edge = rendergraph_add_edge(self->renderGraph, buffer.index().value(), self->passIndex, state);
+		self->passNode->reads.push_back(edge);
+	}
+	void computepass_readwrite_texture(renderpass_builder_t* self, resource_handle_t texture)
+	{
+	}
+	void computepass_readwrite_buffer(renderpass_builder_t* self, buffer_handle_t buffer)
+	{
+		assert(buffer.index().has_value());
+		auto& resourceNode = self->renderGraph->resources[buffer.index().value()];
+		assert(resourceNode.resourceType == ResourceType::Buffer);
+
+		auto edge = rendergraph_add_edge(self->renderGraph, buffer.index().value(), self->passIndex, CGPU_RESOURCE_STATE_UNORDERED_ACCESS);
+		self->passNode->reads.push_back(edge);
+		auto edge2 = rendergraph_add_edge(self->renderGraph, self->passIndex, buffer.index().value(), CGPU_RESOURCE_STATE_UNORDERED_ACCESS);
+		self->passNode->writes.push_back(edge2);
+	}
+	void computepass_set_executable(renderpass_builder_t* self, renderpass_executable executable, size_t passdata_size, void** passdata)
+	{
+		self->passNode->compute_context.executable = executable;
+		allocate_passdata(self->renderGraph, self->passNode, passdata_size, passdata);
+	}
 	void rg_texture_set_extent(rendergraph_t* self, resource_handle_t texture, uint32_t width, uint32_t height, uint32_t depth)
 	{
 		assert(texture.index().has_value());
@@ -341,6 +449,7 @@ namespace HGEGraphics
 		assert(resourceNode.resourceType == ResourceType::Texture);
 		resourceNode.width = width;
 		resourceNode.height = height;
+		resourceNode.depth = depth;
 	}
 	void rg_texture_set_format(rendergraph_t* self, resource_handle_t texture, ECGPUFormat format)
 	{
@@ -391,6 +500,13 @@ namespace HGEGraphics
 		auto& resourceNode = self->resources[texture.index().value()];
 		assert(resourceNode.resourceType == ResourceType::Texture);
 		return resourceNode.height;
+	}
+	uint32_t rg_texture_get_depth(rendergraph_t* self, resource_handle_t texture)
+	{
+		assert(texture.index().has_value());
+		auto& resourceNode = self->resources[texture.index().value()];
+		assert(resourceNode.resourceType == ResourceType::Texture);
+		return resourceNode.depth;
 	}
 	ECGPUFormat rg_texture_get_format(rendergraph_t* self, resource_handle_t texture)
 	{

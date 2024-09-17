@@ -15,9 +15,9 @@ namespace HGEGraphics
 	{
 	}
 
-	TextureWrap* TexturePool::getTexture(uint16_t width, uint16_t height, ECGPUFormat format)
+	TextureWrap* TexturePool::getTexture(uint16_t width, uint16_t height, uint16_t depth, ECGPUFormat format)
 	{
-		TextureDescriptor key = { width, height, 1, 1, format };
+		TextureDescriptor key = { width, height, depth, 1, format };
 		return getResource(key);
 	}
 	CgpuTexturePool::CgpuTexturePool(CGPUDeviceId device, CGPUQueueId gfx_queue, TexturePool* upstream, std::pmr::memory_resource* const memory_resource)
@@ -38,7 +38,7 @@ namespace HGEGraphics
 			.flags = CGPU_TCF_FORCE_2D,
 			.width = descriptor.width,
 			.height = descriptor.height,
-			.depth = 1,
+			.depth = descriptor.depth,
 			.array_size = 1,
 			.format = descriptor.format,
 			.mip_levels = 1,

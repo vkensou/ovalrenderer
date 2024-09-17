@@ -185,6 +185,7 @@ namespace HGEGraphics
 			{
 				auto& resource = compiledRenderGraph.resources[pass.colorAttachments[i].resourceIndex];
 				auto texture = getTexture(compiledRenderGraph.resources, resource);
+				assert(texture->handle->info->depth == 1);
 				CGPUTextureViewDescriptor desc = {};
 				desc.texture = texture->handle;
 				desc.format = texture->handle->info->format;
@@ -202,6 +203,7 @@ namespace HGEGraphics
 			{
 				auto& resource = compiledRenderGraph.resources[pass.depthAttachment.resourceIndex];
 				auto texture = getTexture(compiledRenderGraph.resources, resource);
+				assert(texture->handle->info->depth == 1);
 				CGPUTextureViewDescriptor desc = {};
 				desc.texture = texture->handle;
 				desc.format = texture->handle->info->format;
@@ -295,6 +297,29 @@ namespace HGEGraphics
 			cgpu_cmd_end_render_pass(cmd, encoder);
 		}
 
+	}
+
+	void execute_compute_pass(ExecutorContext& context, CompiledRenderGraph& compiledRenderGraph, const CompiledRenderPassNode& pass, RuntimePass& runtime, CGPUCommandBufferId cmd)
+	{
+		CGPUComputePassDescriptor pass_desc =
+		{
+			.name = pass.name
+		};
+		auto encoder = cgpu_cmd_begin_compute_pass(cmd, &pass_desc);
+
+		if (pass.executable)
+		{
+			RenderPassEncoder rg_encoder = {
+				.compute_encoder = encoder,
+				.context = &context,
+				.compiled_graph = &compiledRenderGraph,
+				.last_render_pipeline = 0,
+				.last_bind_resources = {0},
+			};
+			pass.executable(&rg_encoder, pass.passdata);
+		}
+
+		cgpu_cmd_end_compute_pass(cmd, encoder);
 	}
 
 	void execute_upload_texture_pass(ExecutorContext& context, CompiledRenderGraph& compiledRenderGraph, const CompiledRenderPassNode& pass, RuntimePass& runtime, CGPUCommandBufferId cmd)
@@ -392,7 +417,7 @@ namespace HGEGraphics
 				{
 					if (resource.manageType == ManageType::Managed)
 					{
-						resource.managered_texture = context.texturePool.getTexture(resource.width, resource.height, resource.format);
+						resource.managered_texture = context.texturePool.getTexture(resource.width, resource.height, resource.depth, resource.format);
 					}
 				}
 				else if (resource.resourceType == ResourceType::Buffer)
@@ -415,6 +440,10 @@ namespace HGEGraphics
 			if (pass.type == PASS_TYPE_RENDER)
 			{
 				execute_render_pass(context, compiledRenderGraph, pass, runtime, cmd);
+			}
+			else if (pass.type == PASS_TYPE_COMPUTE)
+			{
+				execute_compute_pass(context, compiledRenderGraph, pass, runtime, cmd);
 			}
 			else if (pass.type == PASS_TYPE_UPLOAD_TEXTURE)
 			{
