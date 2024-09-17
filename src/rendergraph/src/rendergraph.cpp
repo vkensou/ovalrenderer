@@ -18,6 +18,16 @@ namespace HGEGraphics
 		return handle;
 	}
 
+	inline bool is_valid_dynamic_texture_handle(std::pmr::vector<ResourceNode>& resources, texture_handle_t handle)
+	{
+		return rendergraph_texture_handle_valid(handle) && handle.index < resources.size();
+	}
+
+	inline bool is_valid_dynamic_buffer_handle(std::pmr::vector<ResourceNode>& resources, buffer_handle_t handle)
+	{
+		return rendergraph_buffer_handle_valid(handle) && handle.index < resources.size();
+	}
+
 	rendergraph_t::rendergraph_t(size_t estimate_resource_count, size_t estimate_pass_count, size_t estimate_edge_count, Shader* blitShader, CGPUSamplerId blitSampler, std::pmr::memory_resource* const resource)
 		: allocator(resource), resources(resource), passes(resource), edges(resource), blitShader(blitShader), blitSampler(blitSampler)
 	{
@@ -471,7 +481,7 @@ namespace HGEGraphics
 	}
 	void rg_texture_set_extent(rendergraph_t* self, texture_handle_t texture, uint32_t width, uint32_t height, uint32_t depth)
 	{
-		assert(rendergraph_texture_handle_valid(texture));
+		assert(is_valid_dynamic_texture_handle(self->resources, texture));
 		auto& resourceNode = self->resources[texture.index];
 		assert(resourceNode.resourceType == ResourceType::Texture);
 		resourceNode.width = width;
@@ -480,14 +490,14 @@ namespace HGEGraphics
 	}
 	void rg_texture_set_format(rendergraph_t* self, texture_handle_t texture, ECGPUFormat format)
 	{
-		assert(rendergraph_texture_handle_valid(texture));
+		assert(is_valid_dynamic_texture_handle(self->resources, texture));
 		auto& resourceNode = self->resources[texture.index];
 		assert(resourceNode.resourceType == ResourceType::Texture);
 		resourceNode.format = format;
 	}
 	void rg_texture_set_depth_format(rendergraph_t* self, texture_handle_t texture, DepthBits depthBits, bool needStencil)
 	{
-		assert(rendergraph_texture_handle_valid(texture));
+		assert(is_valid_dynamic_texture_handle(self->resources, texture));
 		auto FormatUtil_GetDepthStencilFormat = [](DepthBits depthBits, bool needStencil) -> ECGPUFormat
 		{
 			if (depthBits == DepthBits::D32 && needStencil)
@@ -516,35 +526,35 @@ namespace HGEGraphics
 	}
 	uint32_t rg_texture_get_width(rendergraph_t* self, texture_handle_t texture)
 	{
-		assert(rendergraph_texture_handle_valid(texture));
+		assert(is_valid_dynamic_texture_handle(self->resources, texture));
 		auto& resourceNode = self->resources[texture.index];
 		assert(resourceNode.resourceType == ResourceType::Texture);
 		return resourceNode.width;
 	}
 	uint32_t rg_texture_get_height(rendergraph_t* self, texture_handle_t texture)
 	{
-		assert(rendergraph_texture_handle_valid(texture));
+		assert(is_valid_dynamic_texture_handle(self->resources, texture));
 		auto& resourceNode = self->resources[texture.index];
 		assert(resourceNode.resourceType == ResourceType::Texture);
 		return resourceNode.height;
 	}
 	uint32_t rg_texture_get_depth(rendergraph_t* self, texture_handle_t texture)
 	{
-		assert(rendergraph_texture_handle_valid(texture));
+		assert(is_valid_dynamic_texture_handle(self->resources, texture));
 		auto& resourceNode = self->resources[texture.index];
 		assert(resourceNode.resourceType == ResourceType::Texture);
 		return resourceNode.depth;
 	}
 	ECGPUFormat rg_texture_get_format(rendergraph_t* self, texture_handle_t texture)
 	{
-		assert(rendergraph_texture_handle_valid(texture));
+		assert(is_valid_dynamic_texture_handle(self->resources, texture));
 		auto& resourceNode = self->resources[texture.index];
 		assert(resourceNode.resourceType == ResourceType::Texture);
 		return resourceNode.format;
 	}
 	void rg_buffer_set_size(rendergraph_t* self, buffer_handle_t buffer, uint32_t size)
 	{
-		assert(rendergraph_buffer_handle_valid(buffer));
+		assert(is_valid_dynamic_buffer_handle(self->resources, buffer));
 		auto& resourceNode = self->resources[buffer.index];
 		assert(resourceNode.resourceType == ResourceType::Buffer);
 
@@ -573,21 +583,21 @@ namespace HGEGraphics
 	}
 	void rg_buffer_set_type(rendergraph_t* self, buffer_handle_t buffer, ECGPUResourceType type)
 	{
-		assert(rendergraph_buffer_handle_valid(buffer));
+		assert(is_valid_dynamic_buffer_handle(self->resources, buffer));
 		auto& resourceNode = self->resources[buffer.index];
 		assert(resourceNode.resourceType == ResourceType::Buffer);
 		resourceNode.bufferType = type;
 	}
 	void rg_buffer_set_usage(rendergraph_t* self, buffer_handle_t buffer, ECGPUMemoryUsage usage)
 	{
-		assert(rendergraph_buffer_handle_valid(buffer));
+		assert(is_valid_dynamic_buffer_handle(self->resources, buffer));
 		auto& resourceNode = self->resources[buffer.index];
 		assert(resourceNode.resourceType == ResourceType::Buffer);
 		resourceNode.memoryUsage = usage;
 	}
 	void rg_buffer_import(rendergraph_t* self, buffer_handle_t buffer, Buffer* imported)
 	{
-		assert(rendergraph_buffer_handle_valid(buffer));
+		assert(is_valid_dynamic_buffer_handle(self->resources, buffer));
 		auto& resourceNode = self->resources[buffer.index];
 		assert(resourceNode.resourceType == ResourceType::Buffer);
 		resourceNode.buffer = imported;
@@ -598,7 +608,7 @@ namespace HGEGraphics
 	}
 	void rg_buffer_set_hold_on_last(rendergraph_t* self, buffer_handle_t buffer)
 	{
-		assert(rendergraph_buffer_handle_valid(buffer));
+		assert(is_valid_dynamic_buffer_handle(self->resources, buffer));
 		auto& resourceNode = self->resources[buffer.index];
 		assert(resourceNode.resourceType == ResourceType::Buffer);
 		resourceNode.holdOnLast = true;
