@@ -349,7 +349,7 @@ namespace HGEGraphics
 						if (binder.set == i && binder.bind == res.binding)
 						{
 							CGPUTextureViewId textureview = CGPU_NULLPTR;
-							if (rendergraph_handle_valid(binder.texture_handle))
+							if (rendergraph_texture_handle_valid(binder.texture_handle))
 								textureview = rendergraph_resolve_texture_view(encoder, binder.texture_handle);
 							else if (binder.texture && binder.texture->prepared)
 								textureview = binder.texture->view;
@@ -422,7 +422,7 @@ namespace HGEGraphics
 	void update_mesh(RenderPassEncoder* encoder, Mesh* mesh)
 	{
 		CGPUBufferId vertex_buffer = CGPU_NULLPTR;
-		if (rendergraph_handle_valid(mesh->dynamic_vertex_buffer_handle))
+		if (rendergraph_buffer_handle_valid(mesh->dynamic_vertex_buffer_handle))
 		{
 			auto vertex_buffer_handle = mesh->dynamic_vertex_buffer_handle;
 			vertex_buffer = rendergraph_resolve_buffer(encoder, vertex_buffer_handle);
@@ -441,7 +441,7 @@ namespace HGEGraphics
 		}
 
 		CGPUBufferId index_buffer = CGPU_NULLPTR;
-		if (rendergraph_handle_valid(mesh->dynamic_index_buffer_handle))
+		if (rendergraph_buffer_handle_valid(mesh->dynamic_index_buffer_handle))
 		{
 			auto index_buffer_handle = mesh->dynamic_index_buffer_handle;
 			index_buffer = rendergraph_resolve_buffer(encoder, index_buffer_handle);

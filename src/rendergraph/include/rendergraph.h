@@ -82,7 +82,7 @@ namespace HGEGraphics
 		uint8_t mipCount;;
 		uint8_t arraySize;
 		uint32_t size;
-		uint16_t parent;
+		index_type_t parent;
 		uint8_t mipLevel;
 		uint8_t arraySlice;
 		CGPUResourceTypes bufferType;
@@ -92,8 +92,8 @@ namespace HGEGraphics
 
 	struct RenderGraphEdge
 	{
-		const uint16_t from;
-		const uint16_t to;
+		const index_type_t from;
+		const index_type_t to;
 		const ECGPUResourceState usage;
 	};
 
@@ -179,7 +179,7 @@ namespace HGEGraphics
 
 		rendergraph_t* renderGraph;
 		RenderPassNode* passNode;
-		uint16_t passIndex;
+		index_type_t passIndex;
 	};
 
 	void renderpass_add_color_attachment(renderpass_builder_t* self, texture_handle_t texture, ECGPULoadAction load_action, uint32_t clearColor, ECGPUStoreAction store_action);
@@ -223,9 +223,13 @@ namespace HGEGraphics
 	};
 
 	void rendergraph_reset(rendergraph_t* self);
-	inline bool rendergraph_handle_valid(texture_handle_t handle)
+	inline bool rendergraph_texture_handle_valid(texture_handle_t handle)
 	{
-		return handle != 0;
+		return handle.index != 0;
+	}
+	inline bool rendergraph_buffer_handle_valid(buffer_handle_t handle)
+	{
+		return handle.index != 0;
 	}
 	renderpass_builder_t rendergraph_add_renderpass(rendergraph_t* self, const char8_t* name);
 	renderpass_builder_t rendergraph_add_computepass(rendergraph_t* self, const char8_t* name);
@@ -242,7 +246,7 @@ namespace HGEGraphics
 	buffer_handle_t rendergraph_declare_buffer(rendergraph_t* self);
 	buffer_handle_t rendergraph_declare_uniform_buffer_quick(rendergraph_t* self, uint32_t size, void* data);
 	texture_handle_t rendergraph_declare_texture_subresource(rendergraph_t* self, texture_handle_t parent, uint8_t mipmap, uint8_t slice);
-	uint32_t rendergraph_add_edge(rendergraph_t* self, uint32_t from, uint32_t to, ECGPUResourceState usage);
+	uint32_t rendergraph_add_edge(rendergraph_t* self, index_type_t from, index_type_t to, ECGPUResourceState usage);
 
 	CGPUBufferId rendergraph_resolve_buffer(RenderPassEncoder* encoder, buffer_handle_t buffer_handle);
 	CGPUTextureViewId rendergraph_resolve_texture_view(RenderPassEncoder* encoder, texture_handle_t texture_handle);

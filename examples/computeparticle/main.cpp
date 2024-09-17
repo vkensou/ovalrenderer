@@ -196,7 +196,7 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 
 	Application* app = (Application*)device->descriptor.userdata;
 
-	buffer_handle_t particle_vertex_buffer_handle;
+	buffer_handle_t particle_vertex_buffer_handle = {};
 	if (app->particle_mesh->prepared)
 	{
 		particle_vertex_buffer_handle = rendergraph_declare_buffer(&rg);
@@ -230,7 +230,7 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 	auto passBuilder = rendergraph_add_renderpass(&rg, u8"Main Pass");
 	uint32_t color = 0xff000000;
 	renderpass_add_color_attachment(&passBuilder, rg_back_buffer, ECGPULoadAction::CGPU_LOAD_ACTION_CLEAR, color, ECGPUStoreAction::CGPU_STORE_ACTION_STORE);
-	if (rendergraph_handle_valid(particle_vertex_buffer_handle))
+	if (rendergraph_buffer_handle_valid(particle_vertex_buffer_handle))
 		renderpass_use_buffer_as(&passBuilder, particle_vertex_buffer_handle, CGPU_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
 	struct MainPassPassData
