@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include "renderer.h"
+#include "drawer.h"
 
 namespace HGEGraphics
 {

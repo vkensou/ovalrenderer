@@ -2,6 +2,7 @@
 #include "rendergraph.h"
 #include "ktx.h"
 #include <cassert>
+#include "drawer.h"
 
 typedef unsigned char stbi_uc;
 

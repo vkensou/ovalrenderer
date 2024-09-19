@@ -1306,3 +1306,13 @@ void oval_free_sampler(oval_device_t* device, CGPUSamplerId sampler)
 {
 	cgpu_free_sampler(sampler);
 }
+
+bool oval_mesh_prepared(oval_device_t* device, HGEGraphics::Mesh* mesh)
+{
+	return mesh->prepared;
+}
+
+HGEGraphics::Buffer* oval_mesh_get_vertex_buffer(oval_device_t* device, HGEGraphics::Mesh* mesh)
+{
+	return mesh->vertex_buffer;
+}

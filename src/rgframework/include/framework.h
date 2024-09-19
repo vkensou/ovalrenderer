@@ -2,7 +2,7 @@
 
 #include "stdint.h"
 #include "rendergraph.h"
-#include "renderer.h"
+#include "drawer.h"
 #include "HandmadeMath.h"
 
 typedef void (*oval_on_draw)(struct oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::texture_handle_t rg_back_buffer);
@@ -53,3 +53,5 @@ HGEGraphics::ComputeShader* oval_create_compute_shader(oval_device_t* device, co
 void oval_free_compute_shader(oval_device_t* device, HGEGraphics::ComputeShader* shader);
 CGPUSamplerId oval_create_sampler(oval_device_t* device, const struct CGPUSamplerDescriptor* desc);
 void oval_free_sampler(oval_device_t* device, CGPUSamplerId sampler);
+bool oval_mesh_prepared(oval_device_t* device, HGEGraphics::Mesh* mesh);
+HGEGraphics::Buffer* oval_mesh_get_vertex_buffer(oval_device_t* device, HGEGraphics::Mesh* mesh);

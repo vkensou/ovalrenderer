@@ -197,10 +197,10 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 	Application* app = (Application*)device->descriptor.userdata;
 
 	buffer_handle_t particle_vertex_buffer_handle = {};
-	if (app->particle_mesh->prepared)
+	if (oval_mesh_prepared(app->device, app->particle_mesh))
 	{
 		particle_vertex_buffer_handle = rendergraph_declare_buffer(&rg);
-		rg_buffer_import(&rg, particle_vertex_buffer_handle, app->particle_mesh->vertex_buffer);
+		rg_buffer_import(&rg, particle_vertex_buffer_handle, oval_mesh_get_vertex_buffer(app->device, app->particle_mesh));
 
 		auto particl_update_ubo_handle = rendergraph_declare_uniform_buffer_quick(&rg, sizeof(ParticleUpdateData), &app->particle_update_data);
 
