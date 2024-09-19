@@ -80,7 +80,7 @@ void _init_resource(Application& app)
 		.mip_lod_bias = 0,
 		.max_anisotropy = 1,
 	};
-	app.cubemap_sampler = cgpu_create_sampler(app.device->device, &cubemap_sampler_desc);
+	app.cubemap_sampler = oval_create_sampler(app.device, &cubemap_sampler_desc);
 
 	app.quad = oval_load_mesh(app.device, u8"media/models/Quad.obj");
 	app.sphere = oval_load_mesh(app.device, u8"media/models/Sphere.obj");
@@ -97,7 +97,7 @@ void _free_resource(Application& app)
 	oval_free_texture(app.device, app.cubemap);
 	app.cubemap = nullptr;
 
-	cgpu_free_sampler(app.cubemap_sampler);
+	oval_free_sampler(app.device, app.cubemap_sampler);
 	app.cubemap_sampler = nullptr;
 
 	oval_free_texture(app.device, app.colormap);

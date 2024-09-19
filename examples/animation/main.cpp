@@ -89,7 +89,7 @@ void _init_resource(Application& app)
 		.mip_lod_bias = 0,
 		.max_anisotropy = 1,
 	};
-	app.texture_sampler = cgpu_create_sampler(app.device->device, &texture_sampler_desc);
+	app.texture_sampler = oval_create_sampler(app.device, &texture_sampler_desc);
 
 	app.color_map = oval_load_texture(app.device, u8"media/textures/TilesGray512.ktx", true);
 
@@ -115,7 +115,7 @@ void _free_resource(Application& app)
 	oval_free_shader(app.device, app.shader);
 	app.shader = nullptr;
 
-	cgpu_free_sampler(app.texture_sampler);
+	oval_free_sampler(app.device, app.texture_sampler);
 	app.texture_sampler = nullptr;
 }
 

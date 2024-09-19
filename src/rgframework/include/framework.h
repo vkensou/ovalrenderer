@@ -23,7 +23,6 @@ typedef struct oval_device_descriptor
 
 typedef struct oval_device_t {
     const oval_device_descriptor descriptor;
-    CGPUDeviceId device;
     float deltaTime;
 } oval_device_t;
 
@@ -52,3 +51,5 @@ HGEGraphics::Shader* oval_create_shader(oval_device_t* device, const std::string
 void oval_free_shader(oval_device_t* device, HGEGraphics::Shader* shader);
 HGEGraphics::ComputeShader* oval_create_compute_shader(oval_device_t* device, const std::string& compPath);
 void oval_free_compute_shader(oval_device_t* device, HGEGraphics::ComputeShader* shader);
+CGPUSamplerId oval_create_sampler(oval_device_t* device, const struct CGPUSamplerDescriptor* desc);
+void oval_free_sampler(oval_device_t* device, CGPUSamplerId sampler);
