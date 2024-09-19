@@ -88,10 +88,10 @@ void _init_resource(Application& app)
 
 void _free_resource(Application& app)
 {
-	free_mesh(app.quad);
+	oval_free_mesh(app.device, app.quad);
 	app.quad = nullptr;
 
-	free_mesh(app.sphere);
+	oval_free_mesh(app.device, app.sphere);
 	app.sphere = nullptr;
 
 	oval_free_texture(app.device, app.cubemap);

@@ -103,13 +103,13 @@ void _free_resource(Application& app)
 	oval_free_texture(app.device, app.color_map);
 	app.color_map = nullptr;
 
-	free_mesh(app.mesh1);
+	oval_free_mesh(app.device, app.mesh1);
 	app.mesh1 = nullptr;
 
-	free_mesh(app.mesh2);
+	oval_free_mesh(app.device, app.mesh2);
 	app.mesh2 = nullptr;
 
-	free_mesh(app.mesh3);
+	oval_free_mesh(app.device, app.mesh3);
 	app.mesh3 = nullptr;
 
 	free_shader(app.shader);

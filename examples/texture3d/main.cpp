@@ -218,7 +218,7 @@ void _init_resource(Application& app)
 
 void _free_resource(Application& app)
 {
-	free_mesh(app.quad);
+	oval_free_mesh(app.device, app.quad);
 	app.quad = nullptr;
 
 	cgpu_free_sampler(app.sampler);

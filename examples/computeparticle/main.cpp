@@ -116,13 +116,13 @@ void _free_resource(Application& app)
 	oval_free_texture(app.device, app.gradientmap);
 	app.gradientmap = nullptr;
 
-	free_mesh(app.quad);
+	oval_free_mesh(app.device, app.quad);
 	app.quad = nullptr;
 
 	cgpu_free_sampler(app.sampler);
 	app.sampler = nullptr;
 
-	free_mesh(app.particle_mesh);
+	oval_free_mesh(app.device, app.particle_mesh);
 	app.particle_mesh = nullptr;
 
 	free_shader(app.particle);

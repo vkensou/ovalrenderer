@@ -1268,3 +1268,8 @@ HGEGraphics::Mesh* oval_create_mesh_from_buffer(oval_device_t* device, uint32_t 
 
 	return mesh;
 }
+
+void oval_free_mesh(oval_device_t* device, HGEGraphics::Mesh* mesh)
+{
+	HGEGraphics::free_mesh(mesh);
+}
