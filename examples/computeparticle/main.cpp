@@ -65,8 +65,8 @@ void _init_resource(Application& app)
 	CGPURasterizerStateDescriptor rasterizer_state = {
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
-	app.particle = HGEGraphics::create_shader(app.device->device, "computeparticle/particle.vert.spv", "computeparticle/particle.frag.spv", blend_desc, depth_desc, rasterizer_state);
-	app.particle_updater = HGEGraphics::create_compute_shader(app.device->device, "computeparticle/particle_update.comp.spv");
+	app.particle = oval_create_shader(app.device, "computeparticle/particle.vert.spv", "computeparticle/particle.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.particle_updater = oval_create_compute_shader(app.device, "computeparticle/particle_update.comp.spv");
 
 	app.colormap = oval_load_texture(app.device, u8"media/textures/particle01_rgba.ktx", false);
 	app.gradientmap = oval_load_texture(app.device, u8"media/textures/particle_gradient_rgba.ktx", false);
@@ -125,10 +125,10 @@ void _free_resource(Application& app)
 	oval_free_mesh(app.device, app.particle_mesh);
 	app.particle_mesh = nullptr;
 
-	free_shader(app.particle);
+	oval_free_shader(app.device, app.particle);
 	app.particle = nullptr;
 
-	free_compute_shader(app.particle_updater);
+	oval_free_compute_shader(app.device, app.particle_updater);
 	app.particle_updater = nullptr;
 }
 

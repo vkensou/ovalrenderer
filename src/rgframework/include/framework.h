@@ -24,7 +24,6 @@ typedef struct oval_device_descriptor
 typedef struct oval_device_t {
     const oval_device_descriptor descriptor;
     CGPUDeviceId device;
-    CGPUQueueId gfx_queue;
     float deltaTime;
 } oval_device_t;
 
@@ -49,3 +48,7 @@ void oval_free_texture(oval_device_t* device, HGEGraphics::Texture* texture);
 HGEGraphics::Mesh* oval_load_mesh(oval_device_t* device, const char8_t* filepath);
 HGEGraphics::Mesh* oval_create_mesh_from_buffer(oval_device_t* device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, const uint8_t* vertex_data, const uint8_t* index_data, bool update_vertex_data_from_compute_shader, bool update_index_data_from_compute_shader);
 void oval_free_mesh(oval_device_t* device, HGEGraphics::Mesh* mesh);
+HGEGraphics::Shader* oval_create_shader(oval_device_t* device, const std::string& vertPath, const std::string& fragPath, const CGPUBlendStateDescriptor& blend_desc, const CGPUDepthStateDesc& depth_desc, const CGPURasterizerStateDescriptor& rasterizer_state);
+void oval_free_shader(oval_device_t* device, HGEGraphics::Shader* shader);
+HGEGraphics::ComputeShader* oval_create_compute_shader(oval_device_t* device, const std::string& compPath);
+void oval_free_compute_shader(oval_device_t* device, HGEGraphics::ComputeShader* shader);

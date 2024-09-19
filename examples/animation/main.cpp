@@ -77,7 +77,7 @@ void _init_resource(Application& app)
 	CGPURasterizerStateDescriptor rasterizer_state = {
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
-	app.shader = HGEGraphics::create_shader(app.device->device, "animation/object.vert.spv", "animation/object.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.shader = oval_create_shader(app.device, "animation/object.vert.spv", "animation/object.frag.spv", blend_desc, depth_desc, rasterizer_state);
 
 	CGPUSamplerDescriptor texture_sampler_desc = {
 		.min_filter = CGPU_FILTER_TYPE_LINEAR,
@@ -112,7 +112,7 @@ void _free_resource(Application& app)
 	oval_free_mesh(app.device, app.mesh3);
 	app.mesh3 = nullptr;
 
-	free_shader(app.shader);
+	oval_free_shader(app.device, app.shader);
 	app.shader = nullptr;
 
 	cgpu_free_sampler(app.texture_sampler);

@@ -63,9 +63,9 @@ void _init_resource(Application& app)
 	CGPURasterizerStateDescriptor rasterizer_state = {
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
-	app.skybox_shader = HGEGraphics::create_shader(app.device->device, "hdr/skybox.vert.spv", "hdr/skybox.frag.spv", blend_desc, depth_desc, rasterizer_state);
-	app.unlit_shader = HGEGraphics::create_shader(app.device->device, "hdr/unlit.vert.spv", "hdr/unlit.frag.spv", blend_desc, depth_desc, rasterizer_state);
-	app.hdr_shader = HGEGraphics::create_shader(app.device->device, "hdr/hdr.vert.spv", "hdr/hdr.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.skybox_shader = oval_create_shader(app.device, "hdr/skybox.vert.spv", "hdr/skybox.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.unlit_shader = oval_create_shader(app.device, "hdr/unlit.vert.spv", "hdr/unlit.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.hdr_shader = oval_create_shader(app.device, "hdr/hdr.vert.spv", "hdr/hdr.frag.spv", blend_desc, depth_desc, rasterizer_state);
 
 	app.cubemap = oval_load_texture(app.device, u8"media/textures/uffizi_cube.ktx", true);
 	app.colormap = oval_load_texture(app.device, u8"media/textures/TilesGray512.ktx", true);
@@ -103,13 +103,13 @@ void _free_resource(Application& app)
 	oval_free_texture(app.device, app.colormap);
 	app.colormap = nullptr;
 
-	free_shader(app.skybox_shader);
+	oval_free_shader(app.device, app.skybox_shader);
 	app.skybox_shader = nullptr;
 
-	free_shader(app.unlit_shader);
+	oval_free_shader(app.device, app.unlit_shader);
 	app.unlit_shader = nullptr;
 
-	free_shader(app.hdr_shader);
+	oval_free_shader(app.device, app.hdr_shader);
 	app.hdr_shader = nullptr;
 }
 

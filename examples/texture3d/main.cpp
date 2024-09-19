@@ -197,7 +197,7 @@ void _init_resource(Application& app)
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
 
-	app.texture3d = HGEGraphics::create_shader(app.device->device, "texture3d/texture3d.vert.spv", "texture3d/texture3d.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.texture3d = oval_create_shader(app.device, "texture3d/texture3d.vert.spv", "texture3d/texture3d.frag.spv", blend_desc, depth_desc, rasterizer_state);
 
 	CGPUSamplerDescriptor cubemap_sampler_desc = {
 		.min_filter = CGPU_FILTER_TYPE_LINEAR,
@@ -227,7 +227,7 @@ void _free_resource(Application& app)
 	oval_free_texture(app.device, app.noisemap);
 	app.noisemap = nullptr;
 
-	free_shader(app.texture3d);
+	oval_free_shader(app.device, app.texture3d);
 	app.texture3d = nullptr;
 }
 
