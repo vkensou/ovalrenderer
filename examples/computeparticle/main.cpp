@@ -110,10 +110,10 @@ void _init_resource(Application& app)
 
 void _free_resource(Application& app)
 {
-	free_texture(app.colormap);
+	oval_free_texture(app.device, app.colormap);
 	app.colormap = nullptr;
 
-	free_texture(app.gradientmap);
+	oval_free_texture(app.device, app.gradientmap);
 	app.gradientmap = nullptr;
 
 	free_mesh(app.quad);

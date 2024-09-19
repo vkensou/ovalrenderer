@@ -100,7 +100,7 @@ void _init_resource(Application& app)
 
 void _free_resource(Application& app)
 {
-	free_texture(app.color_map);
+	oval_free_texture(app.device, app.color_map);
 	app.color_map = nullptr;
 
 	free_mesh(app.mesh1);

@@ -224,7 +224,7 @@ void _free_resource(Application& app)
 	cgpu_free_sampler(app.sampler);
 	app.sampler = nullptr;
 
-	free_texture(app.noisemap);
+	oval_free_texture(app.device, app.noisemap);
 	app.noisemap = nullptr;
 
 	free_shader(app.texture3d);

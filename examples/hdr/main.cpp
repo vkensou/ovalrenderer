@@ -94,13 +94,13 @@ void _free_resource(Application& app)
 	free_mesh(app.sphere);
 	app.sphere = nullptr;
 
-	free_texture(app.cubemap);
+	oval_free_texture(app.device, app.cubemap);
 	app.cubemap = nullptr;
 
 	cgpu_free_sampler(app.cubemap_sampler);
 	app.cubemap_sampler = nullptr;
 
-	free_texture(app.colormap);
+	oval_free_texture(app.device, app.colormap);
 	app.colormap = nullptr;
 
 	free_shader(app.skybox_shader);

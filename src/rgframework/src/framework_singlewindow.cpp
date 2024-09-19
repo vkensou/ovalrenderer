@@ -1081,6 +1081,11 @@ HGEGraphics::Texture* load_texture_raw(oval_device_t* device, const char8_t* fil
 }
 
 
+HGEGraphics::Texture* create_texture(oval_device_t* device, const CGPUTextureDescriptor& desc)
+{
+	return HGEGraphics::create_texture(device->device, desc);
+}
+
 HGEGraphics::Texture* oval_load_texture(oval_device_t* device, const char8_t* filepath, bool mipmap)
 {
 	if (endsWithKtx((const char*)filepath))
@@ -1124,6 +1129,11 @@ HGEGraphics::Texture* oval_create_texture_from_buffer(oval_device_t* device, CGP
 	}
 
 	return texture;
+}
+
+void oval_free_texture(oval_device_t* device, HGEGraphics::Texture* texture)
+{
+	HGEGraphics::free_texture(texture);
 }
 
 std::tuple<std::pmr::vector<TexturedVertex>*, std::pmr::vector<uint32_t>*> LoadObjModel(const char8_t* filename, bool right_hand, std::pmr::memory_resource* memory_resource)

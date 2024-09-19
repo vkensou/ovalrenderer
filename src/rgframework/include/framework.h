@@ -41,8 +41,10 @@ void oval_free_device(oval_device_t* device);
 void oval_render_debug_capture(oval_device_t* device);
 void oval_query_render_profile(oval_device_t* device, uint32_t* length, const char8_t*** names, const float** durations);
 
+HGEGraphics::Texture* create_texture(oval_device_t* device, const CGPUTextureDescriptor& desc);
 HGEGraphics::Texture* oval_load_texture(oval_device_t* device, const char8_t* filepath, bool mipmap);
 HGEGraphics::Texture* oval_create_texture_from_buffer(oval_device_t* device, const char8_t* name, uint32_t width, uint32_t height, const unsigned char* data, uint64_t data_size, bool mipmap);
 HGEGraphics::Texture* oval_create_texture_from_buffer(oval_device_t* device, CGPUTextureDescriptor descriptor, const unsigned char* data, uint64_t data_size);
+void oval_free_texture(oval_device_t* device, HGEGraphics::Texture* texture);
 HGEGraphics::Mesh* oval_load_mesh(oval_device_t* device, const char8_t* filepath);
 HGEGraphics::Mesh* oval_create_mesh_from_buffer(oval_device_t* device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, const uint8_t* vertex_data, const uint8_t* index_data, bool update_vertex_data_from_compute_shader, bool update_index_data_from_compute_shader);
