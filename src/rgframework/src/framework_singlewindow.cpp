@@ -23,6 +23,13 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
+struct TexturedVertex
+{
+	HMM_Vec3 position;
+	HMM_Vec3 normal;
+	HMM_Vec2 texCoord;
+};
+
 struct FrameData
 {
 	CGPUFenceId inflightFence;

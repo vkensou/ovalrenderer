@@ -26,13 +26,6 @@ typedef struct oval_device_t {
     float deltaTime;
 } oval_device_t;
 
-struct TexturedVertex
-{
-    HMM_Vec3 position;
-    HMM_Vec3 normal;
-    HMM_Vec2 texCoord;
-};
-
 oval_device_t* oval_create_device(const oval_device_descriptor* device_descriptor);
 void oval_runloop(oval_device_t* device);
 void oval_free_device(oval_device_t* device);
