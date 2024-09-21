@@ -9,6 +9,25 @@
 #include "stb_image.h"
 #include "renderer.h"
 
+struct oval_transfer_data_to_texture
+{
+	HGEGraphics::Texture* texture;
+	void* data;
+	uint64_t size;
+	bool generate_mipmap;
+};
+
+struct oval_graphics_transfer_queue
+{
+	oval_graphics_transfer_queue(std::pmr::memory_resource* memory_resource)
+		: memory_resource(memory_resource)
+	{
+	}
+
+	std::pmr::monotonic_buffer_resource memory_resource;
+	std::queue<oval_transfer_data_to_texture> textures;
+};
+
 struct FrameData
 {
 	CGPUFenceId inflightFence;
@@ -44,6 +63,23 @@ struct FrameInfo
 	}
 };
 
+enum WaitLoadResourceType
+{
+	Texture,
+};
+
+struct WaitLoadResource
+{
+	WaitLoadResourceType type;
+	union {
+		struct {
+			HGEGraphics::Texture* texture;
+			const char8_t* path;
+			bool mipmap;
+		} textureResource;
+	};
+};
+
 struct WaitUploadTexture
 {
 	HGEGraphics::Texture* texture;
@@ -75,13 +111,15 @@ struct WaitUploadMesh
 
 typedef struct oval_cgpu_device_t {
 	oval_cgpu_device_t(const oval_device_t& super, std::pmr::memory_resource* memory_resource)
-		: super(super), memory_resource(memory_resource), wait_upload_texture(memory_resource), wait_upload_mesh(memory_resource), delay_released_stbi_loader(memory_resource), delay_released_ktxTexture(memory_resource), delay_released_vertex_buffer(memory_resource), delay_released_index_buffer(memory_resource), delay_freeed_raw_data(memory_resource)
+		: super(super), memory_resource(memory_resource), wait_upload_texture(memory_resource), wait_upload_mesh(memory_resource), delay_released_stbi_loader(memory_resource), delay_released_ktxTexture(memory_resource)
+		, delay_released_vertex_buffer(memory_resource), delay_released_index_buffer(memory_resource), delay_freeed_raw_data(memory_resource), transfer_queue(memory_resource), allocator(memory_resource), wait_load_resources(memory_resource)
 	{
 	}
 
 	oval_device_t super;
 	SDL_Window* window;
 	std::pmr::memory_resource* memory_resource;
+	std::pmr::polymorphic_allocator<std::byte> allocator;
 	CGPUInstanceId instance;
 	CGPUDeviceId device;
 	CGPUQueueId gfx_queue;
@@ -117,6 +155,11 @@ typedef struct oval_cgpu_device_t {
 	std::pmr::vector<std::pmr::vector<TexturedVertex>*> delay_released_vertex_buffer;
 	std::pmr::vector<std::pmr::vector<uint32_t>*> delay_released_index_buffer;
 	std::pmr::vector<void*> delay_freeed_raw_data;
+	std::queue<oval_graphics_transfer_queue*, std::pmr::deque<oval_graphics_transfer_queue*>> transfer_queue;
+	std::queue<WaitLoadResource, std::pmr::deque<WaitLoadResource>> wait_load_resources;
 
 	HGEGraphics::Texture* default_texture;
 } oval_cgpu_device_t;
+
+void oval_load_texture_queue(oval_cgpu_device_t* device);
+void oval_graphics_transfer_queue_execute_all(oval_cgpu_device_t* device);

@@ -119,7 +119,7 @@ namespace HGEGraphics
 		const uint64_t xBlocksCount = mipedSize(usedTextureNode->width, mipmap) / FormatUtil_WidthOfBlock(usedTextureNode->format);
 		const uint64_t yBlocksCount = mipedSize(usedTextureNode->height, mipmap) / FormatUtil_HeightOfBlock(usedTextureNode->format);
 		const uint64_t zBlocksCount = mipedSize(usedTextureNode->depth, mipmap);
-		const uint64_t bufferSize = xBlocksCount * yBlocksCount * zBlocksCount * FormatUtil_BitSizeOfBlock(usedTextureNode->format) / sizeof(uint8_t);
+		const uint64_t bufferSize = xBlocksCount * yBlocksCount * zBlocksCount * FormatUtil_BitSizeOfBlock(usedTextureNode->format) / 8;
 		assert(bufferSize >= size + offset);
 		rg_buffer_set_size(self, staging_buffer, bufferSize);
 		rg_buffer_set_type(self, staging_buffer, CGPU_RESOURCE_TYPE_NONE);

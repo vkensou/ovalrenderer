@@ -227,10 +227,19 @@ namespace HGEGraphics
 		delete mesh;
 	}
 
-	Texture* create_texture(CGPUDeviceId device, const CGPUTextureDescriptor& desc)
+	Texture* create_empty_texture()
 	{
 		auto texture = new Texture();
+		texture->handle = CGPU_NULLPTR;
+		texture->view = CGPU_NULLPTR;
+		texture->cur_states.clear();
+		texture->states_consistent = false;
+		texture->prepared = false;
+		return texture;
+	}
 
+	void init_texture(Texture* texture, CGPUDeviceId device, const CGPUTextureDescriptor& desc)
+	{
 		CGPUTextureDescriptor new_desc = desc;
 		if (desc.depth == 1 && desc.height == 1)
 			new_desc.flags |= CGPU_TCF_FORCE_2D;
@@ -258,14 +267,21 @@ namespace HGEGraphics
 		view_desc.mip_level_count = texture->handle->info->mip_levels;
 		texture->view = cgpu_create_texture_view(device, &view_desc);
 		texture->prepared = false;
+	}
 
+	Texture* create_texture(CGPUDeviceId device, const CGPUTextureDescriptor& desc)
+	{
+		auto texture = create_empty_texture();
+		init_texture(texture, device, desc);
 		return texture;
 	}
 
 	void free_texture(Texture* texture)
 	{
-		cgpu_free_texture_view(texture->view);
-		cgpu_free_texture(texture->handle);
+		if (texture->view)
+			cgpu_free_texture_view(texture->view);
+		if (texture->handle)
+			cgpu_free_texture(texture->handle);
 		delete texture;
 	}
 

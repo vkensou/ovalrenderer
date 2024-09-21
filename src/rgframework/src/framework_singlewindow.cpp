@@ -578,6 +578,9 @@ void oval_runloop(oval_device_t* device)
 		auto back_buffer = &D->backbuffer[D->info.current_swapchain_index];
 		auto prepared_semaphore = D->swapchain_prepared_semaphores[D->current_frame_index];
 
+		oval_load_texture_queue(D);
+		oval_graphics_transfer_queue_execute_all(D);
+
 		render(D, back_buffer);
 
 		CGPUQueueSubmitDescriptor submit_desc = {

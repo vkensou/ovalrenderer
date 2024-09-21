@@ -86,6 +86,8 @@ namespace HGEGraphics
 		bool prepared;
 	};
 
+	Texture* create_empty_texture();
+	void init_texture(Texture* texture, CGPUDeviceId device, const CGPUTextureDescriptor& desc);
 	Texture* create_texture(CGPUDeviceId device, const CGPUTextureDescriptor& desc);
 	void free_texture(Texture* texture);
 

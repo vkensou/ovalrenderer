@@ -38,20 +38,21 @@ std::pair<ECGPUFormat, int> detectKtxTextureFormat(ktxTexture* ktxTexture)
 	return { CGPU_FORMAT_UNDEFINED, 0 };
 }
 
-HGEGraphics::Texture* load_texture_ktx(oval_device_t* device, const char8_t* filepath, bool mipmap)
+uint64_t load_texture_ktx(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t queue, HGEGraphics::Texture* texture, const char8_t* filepath, bool mipmap)
 {
+	return 0;
 	ktxResult result = KTX_SUCCESS;
 	ktxTexture* ktxTexture;
 	result = ktxTexture_CreateFromNamedFile((const char*)filepath, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
 	if (result != KTX_SUCCESS)
-		return nullptr;
+		return 0;
 
 	auto [format, component] = detectKtxTextureFormat(ktxTexture);
 	// TODO: support compressed ktxTexture
 	if (ktxTexture->isCompressed || format == CGPU_FORMAT_UNDEFINED)
 	{
 		ktxTexture_Destroy(ktxTexture);
-		return nullptr;
+		return 0;
 	}
 
 	uint32_t width = ktxTexture->baseWidth;
@@ -59,7 +60,6 @@ HGEGraphics::Texture* load_texture_ktx(oval_device_t* device, const char8_t* fil
 	uint32_t mipLevels = ktxTexture->numLevels;
 	uint32_t arraySize = 1;
 
-	auto D = (oval_cgpu_device_t*)device;
 	bool generateMipmap = mipmap && mipLevels <= 1;
 	mipLevels = mipmap ? (mipLevels > 1 ? mipLevels : (static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1)) : 1;
 	CGPUResourceTypes descriptors = CGPU_RESOURCE_TYPE_TEXTURE;
@@ -79,28 +79,27 @@ HGEGraphics::Texture* load_texture_ktx(oval_device_t* device, const char8_t* fil
 		.array_size = arraySize,
 		.format = format,
 		.mip_levels = mipLevels,
-		.owner_queue = D->gfx_queue,
+		.owner_queue = device->gfx_queue,
 		.start_state = CGPU_RESOURCE_STATE_UNDEFINED,
 		.descriptors = descriptors,
 	};
 
-	auto texture = HGEGraphics::create_texture(D->device, texture_desc);
+	HGEGraphics::init_texture(texture, device->device, texture_desc);
 
-	D->wait_upload_texture.push({ texture, 1, nullptr, ktxTexture, generateMipmap, component });
+	device->wait_upload_texture.push({ texture, 1, nullptr, ktxTexture, generateMipmap, component });
 
-	return texture;
-
-	ktxTexture_Destroy(ktxTexture);
-
-	return nullptr;
+	return 0;
 }
 
-HGEGraphics::Texture* load_texture_raw(oval_device_t* device, const char8_t* filepath, bool mipmap)
+uint64_t load_texture_raw(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t queue, HGEGraphics::Texture* texture, const char8_t* filepath, bool mipmap)
 {
 	int width = 0, height = 0, components = 0;
 	auto texture_loader = stbi_load((const char*)filepath, &width, &height, &components, 4);
 	if (!texture_loader)
-		return nullptr;
+	{
+		assert(texture_loader && "load texture filed");
+		return 0;
+	}
 
 	const char* filename = nullptr;
 	if (filepath)
@@ -111,7 +110,6 @@ HGEGraphics::Texture* load_texture_raw(oval_device_t* device, const char8_t* fil
 		filename = filename ? filename + 1 : (const char*)filepath;
 	}
 
-	auto D = (oval_cgpu_device_t*)device;
 	auto mipLevels = mipmap ? static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1 : 1;
 	CGPUTextureDescriptor texture_desc =
 	{
@@ -122,22 +120,63 @@ HGEGraphics::Texture* load_texture_raw(oval_device_t* device, const char8_t* fil
 		.array_size = 1,
 		.format = CGPU_FORMAT_R8G8B8A8_SRGB,
 		.mip_levels = mipLevels,
-		.owner_queue = D->gfx_queue,
+		.owner_queue = device->gfx_queue,
 		.start_state = CGPU_RESOURCE_STATE_UNDEFINED,
 		.descriptors = CGPUResourceTypes(mipmap ? CGPU_RESOURCE_TYPE_TEXTURE | CGPU_RESOURCE_TYPE_RENDER_TARGET : CGPU_RESOURCE_TYPE_TEXTURE),
 	};
 
-	auto texture = HGEGraphics::create_texture(D->device, texture_desc);
+	HGEGraphics::init_texture(texture, device->device, texture_desc);
 
-	D->wait_upload_texture.push({ texture, 0, texture_loader, nullptr, mipmap && texture->handle->info->mip_levels > 1, 4 });
+	uint64_t size = width * height * 4;
+	bool genenrate_mipmap = mipmap && texture->handle->info->mip_levels > 1;
+	auto data = oval_graphics_transfer_queue_transfer_data_to_texture(queue, size, texture, genenrate_mipmap);
+	memcpy(data, texture_loader, size);
 
-	return texture;
+	return size;
 }
 
 HGEGraphics::Texture* oval_load_texture(oval_device_t* device, const char8_t* filepath, bool mipmap)
 {
-	if (endsWithKtx((const char*)filepath))
-		return load_texture_ktx(device, filepath, mipmap);
-	else
-		return load_texture_raw(device, filepath, mipmap);
+	auto D = (oval_cgpu_device_t*)device;
+
+	WaitLoadResource resource;
+	resource.type = Texture;
+	size_t path_size = strlen((const char*)filepath);
+	char8_t* path = (char8_t*)D->memory_resource->allocate(path_size);
+	memcpy(path, filepath, path_size);
+	resource.textureResource = {
+		.texture = HGEGraphics::create_empty_texture(),
+		.path = path,
+		.mipmap = mipmap,
+	};
+	D->wait_load_resources.push(resource);
+	return resource.textureResource.texture;
+}
+
+void oval_load_texture_queue(oval_cgpu_device_t* device)
+{
+	if (device->wait_load_resources.empty())
+		return;
+
+	auto queue = oval_graphics_transfer_queue_alloc(&device->super);
+
+	const uint64_t max_size = 1024 * 1024 * sizeof(uint32_t) * 10;
+	uint64_t uploaded = 0;
+	while (uploaded < max_size && !device->wait_load_resources.empty())
+	{
+		auto waited = device->wait_load_resources.front();
+		device->wait_load_resources.pop();
+		if (waited.type == Texture)
+		{
+			auto& textureResource = waited.textureResource;
+			if (endsWithKtx((const char*)textureResource.path))
+				uploaded += load_texture_ktx(device, queue, textureResource.texture, textureResource.path, textureResource.mipmap);
+			else
+				uploaded += load_texture_raw(device, queue, textureResource.texture, textureResource.path, textureResource.mipmap);
+
+
+		}
+	}
+
+	oval_graphics_transfer_queue_submit(&device->super, queue);
 }
