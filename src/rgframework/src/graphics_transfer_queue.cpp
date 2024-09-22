@@ -29,14 +29,15 @@ uint8_t* oval_graphics_transfer_queue_transfer_data_to_buffer(oval_graphics_tran
 	return data;
 }
 
-uint8_t* oval_graphics_transfer_queue_transfer_data_to_texture_full(oval_graphics_transfer_queue_t queue, HGEGraphics::Texture* texture, bool generate_mipmap, uint64_t* size)
+uint8_t* oval_graphics_transfer_queue_transfer_data_to_texture_full(oval_graphics_transfer_queue_t queue, HGEGraphics::Texture* texture, bool generate_mipmap, uint8_t generate_mipmap_from, uint64_t* size)
 {
 	assert(texture != nullptr);
 
 	auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
 
 	uint64_t used_size = 0;
-	for (size_t mipmap = 0; mipmap < texture->handle->info->mip_levels; ++mipmap)
+	size_t maxMipmap = generate_mipmap ? std::min((uint32_t)generate_mipmap_from, texture->handle->info->mip_levels) : texture->handle->info->mip_levels;
+	for (size_t mipmap = 0; mipmap < maxMipmap; ++mipmap)
 	{
 		const uint64_t xBlocksCount = mipedSize(texture->handle->info->width, mipmap) / FormatUtil_WidthOfBlock(texture->handle->info->format);
 		const uint64_t yBlocksCount = mipedSize(texture->handle->info->height, mipmap) / FormatUtil_HeightOfBlock(texture->handle->info->format);
@@ -46,7 +47,7 @@ uint8_t* oval_graphics_transfer_queue_transfer_data_to_texture_full(oval_graphic
 
 	uint8_t* data = (uint8_t*)queue->memory_resource.allocate(used_size);
 	assert(data != nullptr);
-	queue->textures.emplace_back(texture, data, used_size, 0, 0, true, generate_mipmap);
+	queue->textures.emplace_back(texture, data, used_size, 0, 0, true, generate_mipmap, generate_mipmap_from);
 	if (size)
 		*size = used_size;
 	return data;
@@ -108,7 +109,7 @@ void uploadTexture(HGEGraphics::rendergraph_t& rg, std::pmr::vector<HGEGraphics:
 	}
 
 	if (waited.texture->handle->info->mip_levels > 1 && waited.generate_mipmap)
-		rendergraph_add_generate_mipmap(&rg, texture_handle);
+		rendergraph_add_generate_mipmap(&rg, texture_handle, waited.generate_mipmap_from);
 	uploaded_texture_handles.push_back(texture_handle);
 }
 

@@ -170,7 +170,7 @@ namespace HGEGraphics
 		pass.upload_buffer_context.offset = offset;
 		pass.upload_buffer_context.data = data;
 	}
-	void rendergraph_add_generate_mipmap(rendergraph_t* self, texture_handle_t texture)
+	void rendergraph_add_generate_mipmap(rendergraph_t* self, texture_handle_t texture, uint8_t from_mipmap)
 	{
 		assert(rendergraph_texture_handle_valid(texture));
 		auto& textureNode = self->resources[get_texture_handle_index(texture)];
@@ -181,7 +181,7 @@ namespace HGEGraphics
 
 		auto mip0 = rendergraph_declare_texture_subresource(self, texture, 0, 0);
 		auto last = mip0;
-		for (size_t i = 1; i < textureNode.mipCount; ++i)
+		for (size_t i = from_mipmap; i < textureNode.mipCount; ++i)
 		{
 			auto mipi = rendergraph_declare_texture_subresource(self, texture, i, 0);
 

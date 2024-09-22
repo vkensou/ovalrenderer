@@ -243,7 +243,7 @@ namespace HGEGraphics
 	void rendergraph_add_uploadtexturepass_ex(rendergraph_t* self, const char8_t* name, texture_handle_t texture, uint8_t mipmap, uint8_t slice, uint64_t size, uint64_t offset, void* data, uploadpass_executable executable, size_t passdata_size, void** passdata);
 	void rendergraph_add_uploadbufferpass(rendergraph_t* self, const char8_t* name, buffer_handle_t buffer, uploadpass_executable executable, size_t passdata_size, void** passdata);
 	void rendergraph_add_uploadbufferpass_ex(rendergraph_t* self, const char8_t* name, buffer_handle_t buffer, uint64_t size, uint64_t offset, void* data, uploadpass_executable executable, size_t passdata_size, void** passdata);
-	void rendergraph_add_generate_mipmap(rendergraph_t* self, texture_handle_t texture);
+	void rendergraph_add_generate_mipmap(rendergraph_t* self, texture_handle_t texture, uint8_t from_mipmap);
 	void rendergraph_present(rendergraph_t* self, texture_handle_t texture);
 	texture_handle_t rendergraph_declare_texture(rendergraph_t* self);
 	texture_handle_t rendergraph_import_texture(rendergraph_t* self, Texture* imported);

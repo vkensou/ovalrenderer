@@ -88,7 +88,7 @@ uint64_t load_texture_ktx(oval_cgpu_device_t* device, oval_graphics_transfer_que
 	auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
 	uint64_t size = 0;
 	uint32_t textureComponent = FormatUtil_BitSizeOfBlock(texture->handle->info->format) / 8;
-	auto data = oval_graphics_transfer_queue_transfer_data_to_texture_full(queue, texture, generateMipmap, &size);
+	auto data = oval_graphics_transfer_queue_transfer_data_to_texture_full(queue, texture, generateMipmap, ktxTexture->numLevels, &size);
 	{
 		auto offset_data = data;
 		auto ktxTextureData = ktxTexture_GetData(ktxTexture);
@@ -166,7 +166,7 @@ uint64_t load_texture_raw(oval_cgpu_device_t* device, oval_graphics_transfer_que
 
 	uint64_t size = 0;
 	bool genenrate_mipmap = mipmap && texture->handle->info->mip_levels > 1;
-	auto data = oval_graphics_transfer_queue_transfer_data_to_texture_full(queue, texture, genenrate_mipmap, &size);
+	auto data = oval_graphics_transfer_queue_transfer_data_to_texture_full(queue, texture, genenrate_mipmap, 1, &size);
 	assert(size == width * height * 4);
 	memcpy(data, texture_loader, size);
 

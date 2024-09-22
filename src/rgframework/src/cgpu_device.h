@@ -18,6 +18,7 @@ struct oval_transfer_data_to_texture
 	uint32_t slice;
 	bool transfer_full;
 	bool generate_mipmap;
+	uint8_t generate_mipmap_from;
 };
 
 struct oval_transfer_data_to_buffer
