@@ -57,8 +57,6 @@ void uploadTexture(HGEGraphics::rendergraph_t& rg, std::pmr::vector<HGEGraphics:
 	if (waited.texture->handle->info->mip_levels > 1 && waited.generate_mipmap)
 		rendergraph_add_generate_mipmap(&rg, texture_handle);
 	uploaded_texture_handles.push_back(texture_handle);
-
-	waited.texture->prepared = true;
 }
 
 void oval_graphics_transfer_queue_execute(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t queue)

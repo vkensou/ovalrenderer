@@ -109,6 +109,11 @@ void oval_free_sampler(oval_device_t* device, CGPUSamplerId sampler)
 	cgpu_free_sampler(sampler);
 }
 
+bool oval_texture_prepared(oval_device_t* device, HGEGraphics::Texture* texture)
+{
+	return texture->prepared;
+}
+
 bool oval_mesh_prepared(oval_device_t* device, HGEGraphics::Mesh* mesh)
 {
 	return mesh->prepared;

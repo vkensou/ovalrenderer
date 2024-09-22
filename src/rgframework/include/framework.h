@@ -48,6 +48,7 @@ HGEGraphics::ComputeShader* oval_create_compute_shader(oval_device_t* device, co
 void oval_free_compute_shader(oval_device_t* device, HGEGraphics::ComputeShader* shader);
 CGPUSamplerId oval_create_sampler(oval_device_t* device, const struct CGPUSamplerDescriptor* desc);
 void oval_free_sampler(oval_device_t* device, CGPUSamplerId sampler);
+bool oval_texture_prepared(oval_device_t* device, HGEGraphics::Texture* texture);
 bool oval_mesh_prepared(oval_device_t* device, HGEGraphics::Mesh* mesh);
 HGEGraphics::Buffer* oval_mesh_get_vertex_buffer(oval_device_t* device, HGEGraphics::Mesh* mesh);
 oval_graphics_transfer_queue_t oval_graphics_transfer_queue_alloc(oval_device_t* device);

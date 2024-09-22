@@ -193,6 +193,7 @@ HGEGraphics::Texture* oval_load_texture(oval_device_t* device, const char8_t* fi
 		.path = path,
 		.mipmap = mipmap,
 	};
+	resource.textureResource.texture->prepared = false;
 	D->wait_load_resources.push(resource);
 	return resource.textureResource.texture;
 }
@@ -217,6 +218,7 @@ void oval_load_texture_queue(oval_cgpu_device_t* device)
 				uploaded += load_texture_ktx(device, queue, textureResource.texture, textureResource.path, textureResource.mipmap);
 			else
 				uploaded += load_texture_raw(device, queue, textureResource.texture, textureResource.path, textureResource.mipmap);
+			waited.textureResource.texture->prepared = true;
 		}
 	}
 
