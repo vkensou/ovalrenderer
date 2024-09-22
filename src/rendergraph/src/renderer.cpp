@@ -135,9 +135,24 @@ namespace HGEGraphics
 		delete buffer;
 	}
 
-	Mesh* create_mesh(CGPUDeviceId device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, bool update_vertex_data_from_compute_shader, bool update_index_data_from_compute_shader)
+	Mesh* create_empty_mesh()
 	{
 		auto mesh = new Mesh();
+		mesh->vertex_layout = {};
+		mesh->prim_topology = CGPU_PRIM_TOPO_POINT_LIST;
+		mesh->vertices_count = 0;
+		mesh->index_count = 0;
+		mesh->index_stride = 0;
+		mesh->vertex_buffer = nullptr;
+		mesh->index_buffer = nullptr;
+		mesh->dynamic_vertex_buffer_handle = {};
+		mesh->dynamic_index_buffer_handle = {};
+		mesh->prepared = false;
+		return mesh;
+	}
+
+	void init_mesh(Mesh* mesh, CGPUDeviceId device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, bool update_vertex_data_from_compute_shader, bool update_index_data_from_compute_shader)
+	{
 		mesh->vertex_layout = vertex_layout;
 		mesh->prim_topology = prim_topology;
 		mesh->vertices_count = vertex_count;
@@ -167,6 +182,12 @@ namespace HGEGraphics
 			mesh->index_buffer = create_buffer(device, index_buffer_desc);
 		}
 		mesh->prepared = false;
+	}
+
+	Mesh* create_mesh(CGPUDeviceId device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, bool update_vertex_data_from_compute_shader, bool update_index_data_from_compute_shader)
+	{
+		auto mesh = create_empty_mesh();
+		init_mesh(mesh, device, vertex_count, index_count, prim_topology, vertex_layout, index_stride, update_vertex_data_from_compute_shader, update_index_data_from_compute_shader);
 		return mesh;
 	}
 

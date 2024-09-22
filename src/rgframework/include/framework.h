@@ -51,5 +51,5 @@ bool oval_mesh_prepared(oval_device_t* device, HGEGraphics::Mesh* mesh);
 HGEGraphics::Buffer* oval_mesh_get_vertex_buffer(oval_device_t* device, HGEGraphics::Mesh* mesh);
 oval_graphics_transfer_queue_t oval_graphics_transfer_queue_alloc(oval_device_t* device);
 void oval_graphics_transfer_queue_submit(oval_device_t* device, oval_graphics_transfer_queue_t queue);
-void oval_graphics_transfer_queue_transfer_data_to_buffer(oval_graphics_transfer_queue_t queue, void* data, uint64_t size, HGEGraphics::Buffer* buffer);
+uint8_t* oval_graphics_transfer_queue_transfer_data_to_buffer(oval_graphics_transfer_queue_t queue, uint64_t size, HGEGraphics::Buffer* buffer);
 uint8_t* oval_graphics_transfer_queue_transfer_data_to_texture(oval_graphics_transfer_queue_t queue, uint64_t size, HGEGraphics::Texture* texture, bool generate_mipmap);

@@ -176,22 +176,34 @@ uint64_t load_texture_raw(oval_cgpu_device_t* device, oval_graphics_transfer_que
 	auto data = oval_graphics_transfer_queue_transfer_data_to_texture(queue, size, texture, genenrate_mipmap);
 	memcpy(data, texture_loader, size);
 
+	stbi_image_free(texture_loader);
+
 	return size;
 }
+
+uint64_t load_texture(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t queue, HGEGraphics::Texture* texture, const char8_t* filepath, bool mipmap)
+{
+	if (endsWithKtx((const char*)filepath))
+		return load_texture_ktx(device, queue, texture, filepath, mipmap);
+	else
+		return load_texture_raw(device, queue, texture, filepath, mipmap);
+}
+
+uint64_t load_mesh(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t queue, HGEGraphics::Mesh* mesh, const char8_t* filepath);
 
 HGEGraphics::Texture* oval_load_texture(oval_device_t* device, const char8_t* filepath, bool mipmap)
 {
 	auto D = (oval_cgpu_device_t*)device;
 
 	WaitLoadResource resource;
-	resource.type = Texture;
+	resource.type = WaitLoadResourceType::Texture;
 	size_t path_size = strlen((const char*)filepath) + 1;
 	char8_t* path = (char8_t*)D->allocator.allocate_bytes(path_size);
 	memcpy(path, filepath, path_size);
+	resource.path = path;
+	resource.path_size = path_size;
 	resource.textureResource = {
 		.texture = HGEGraphics::create_empty_texture(),
-		.path = path,
-		.path_size = path_size,
 		.mipmap = mipmap,
 	};
 	resource.textureResource.texture->prepared = false;
@@ -212,15 +224,19 @@ void oval_load_texture_queue(oval_cgpu_device_t* device)
 	{
 		auto waited = device->wait_load_resources.front();
 		device->wait_load_resources.pop();
-		if (waited.type == Texture)
+		if (waited.type == WaitLoadResourceType::Texture)
 		{
 			auto& textureResource = waited.textureResource;
-			if (endsWithKtx((const char*)textureResource.path))
-				uploaded += load_texture_ktx(device, queue, textureResource.texture, textureResource.path, textureResource.mipmap);
-			else
-				uploaded += load_texture_raw(device, queue, textureResource.texture, textureResource.path, textureResource.mipmap);
+			uploaded += load_texture(device, queue, textureResource.texture, waited.path, textureResource.mipmap);
 			waited.textureResource.texture->prepared = true;
-			device->allocator.deallocate_bytes((void*)waited.textureResource.path, waited.textureResource.path_size);
+			device->allocator.deallocate_bytes((void*)waited.path, waited.path_size);
+		}
+		else if (waited.type == WaitLoadResourceType::Mesh)
+		{
+			auto& meshResource = waited.meshResource;
+			uploaded += load_mesh(device, queue, meshResource.mesh, waited.path);
+			waited.meshResource.mesh->prepared = true;
+			device->allocator.deallocate_bytes((void*)waited.path, waited.path_size);
 		}
 	}
 

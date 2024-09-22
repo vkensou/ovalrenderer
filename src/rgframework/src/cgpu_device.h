@@ -17,15 +17,23 @@ struct oval_transfer_data_to_texture
 	bool generate_mipmap;
 };
 
+struct oval_transfer_data_to_buffer
+{
+	HGEGraphics::Buffer* buffer;
+	uint8_t* data;
+	uint64_t size;
+};
+
 struct oval_graphics_transfer_queue
 {
 	oval_graphics_transfer_queue(std::pmr::memory_resource* memory_resource)
-		: textures(memory_resource), memory_resource(memory_resource)
+		: textures(memory_resource), buffers(memory_resource), memory_resource(memory_resource)
 	{
 	}
 
 	std::pmr::monotonic_buffer_resource memory_resource;
 	std::pmr::vector<oval_transfer_data_to_texture> textures;
+	std::pmr::vector<oval_transfer_data_to_buffer> buffers;
 };
 
 struct FrameData
@@ -63,21 +71,25 @@ struct FrameInfo
 	}
 };
 
-enum WaitLoadResourceType
+enum class WaitLoadResourceType
 {
 	Texture,
+	Mesh,
 };
 
 struct WaitLoadResource
 {
 	WaitLoadResourceType type;
+	const char8_t* path;
+	size_t path_size;
 	union {
 		struct {
 			HGEGraphics::Texture* texture;
-			const char8_t* path;
-			size_t path_size;
 			bool mipmap;
 		} textureResource;
+		struct {
+			HGEGraphics::Mesh* mesh;
+		} meshResource;
 	};
 };
 

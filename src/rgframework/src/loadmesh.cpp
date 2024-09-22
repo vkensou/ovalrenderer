@@ -88,16 +88,15 @@ std::tuple<std::pmr::vector<TexturedVertex>*, std::pmr::vector<uint32_t>*> LoadO
 	return { vertices, indices };
 }
 
-HGEGraphics::Mesh* oval_load_mesh(oval_device_t* device, const char8_t* filepath)
+uint64_t load_mesh(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t queue, HGEGraphics::Mesh* mesh, const char8_t* filepath)
 {
-	auto D = (oval_cgpu_device_t*)device;
-	auto [data, indices] = LoadObjModel(filepath, true, D->memory_resource);
+	auto [data, indices] = LoadObjModel(filepath, true, device->memory_resource);
 
 	if (!data)
 	{
 		if (indices)
 			delete indices;
-		return nullptr;
+		return 0;
 	}
 
 	CGPUVertexLayout mesh_vertex_layout =
@@ -110,9 +109,42 @@ HGEGraphics::Mesh* oval_load_mesh(oval_device_t* device, const char8_t* filepath
 			{ u8"TEXCOORD", 1, CGPU_FORMAT_R32G32_SFLOAT, 0, sizeof(float) * 6, sizeof(float) * 2, CGPU_INPUT_RATE_VERTEX },
 		}
 	};
-	auto mesh = HGEGraphics::create_mesh(D->device, data->size(), (indices ? indices->size() : 0), CGPU_PRIM_TOPO_TRI_LIST, mesh_vertex_layout, (indices ? sizeof(uint32_t) : 0), false, false);
 
-	D->wait_upload_mesh.push({ mesh, data, indices, nullptr, nullptr, mesh->vertices_count * mesh->vertex_stride, mesh->index_count * mesh->index_stride });
+	HGEGraphics::init_mesh(mesh, device->device, data->size(), (indices ? indices->size() : 0), CGPU_PRIM_TOPO_TRI_LIST, mesh_vertex_layout, (indices ? sizeof(uint32_t) : 0), false, false);
 
-	return mesh;
+	uint64_t vertex_data_size = mesh->vertices_count * mesh->vertex_stride;
+	auto vertex_data = oval_graphics_transfer_queue_transfer_data_to_buffer(queue, vertex_data_size, mesh->vertex_buffer);
+	memcpy(vertex_data, data->data(), vertex_data_size);
+
+	if (indices)
+	{
+		uint64_t index_data_size = mesh->index_count * mesh->index_stride;
+		auto index_data = oval_graphics_transfer_queue_transfer_data_to_buffer(queue, index_data_size, mesh->index_buffer);
+		memcpy(index_data, indices->data(), index_data_size);
+	}
+
+
+	delete data;
+	delete indices;
+
+	return 0;
+}
+
+HGEGraphics::Mesh* oval_load_mesh(oval_device_t* device, const char8_t* filepath)
+{
+	auto D = (oval_cgpu_device_t*)device;
+
+	WaitLoadResource resource;
+	resource.type = WaitLoadResourceType::Mesh;
+	size_t path_size = strlen((const char*)filepath) + 1;
+	char8_t* path = (char8_t*)D->allocator.allocate_bytes(path_size);
+	memcpy(path, filepath, path_size);
+	resource.path = path;
+	resource.path_size = path_size;
+	resource.meshResource = {
+		.mesh = HGEGraphics::create_empty_mesh(),
+	};
+	resource.meshResource.mesh->prepared = false;
+	D->wait_load_resources.push(resource);
+	return resource.meshResource.mesh;
 }

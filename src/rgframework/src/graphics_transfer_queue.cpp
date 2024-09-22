@@ -19,9 +19,14 @@ void oval_graphics_transfer_queue_submit(oval_device_t* device, oval_graphics_tr
 	D->transfer_queue.push_back(queue);
 }
 
-void oval_graphics_transfer_queue_transfer_data_to_buffer(oval_graphics_transfer_queue_t queue, void* data, uint64_t size, HGEGraphics::Buffer* buffer)
+uint8_t* oval_graphics_transfer_queue_transfer_data_to_buffer(oval_graphics_transfer_queue_t queue, uint64_t size, HGEGraphics::Buffer* buffer)
 {
-	
+	assert(size > 0);
+	assert(buffer != nullptr);
+	uint8_t* data = (uint8_t*)queue->memory_resource.allocate(size);
+	assert(data != nullptr);
+	queue->buffers.emplace_back(buffer, data, size);
+	return data;
 }
 
 uint8_t* oval_graphics_transfer_queue_transfer_data_to_texture(oval_graphics_transfer_queue_t queue, uint64_t size, HGEGraphics::Texture* texture, bool generate_mipmap)
@@ -32,6 +37,15 @@ uint8_t* oval_graphics_transfer_queue_transfer_data_to_texture(oval_graphics_tra
 	assert(data != nullptr);
 	queue->textures.emplace_back(texture, data, size, generate_mipmap);
 	return data;
+}
+
+void uploadBuffer(HGEGraphics::rendergraph_t& rg, std::pmr::vector<HGEGraphics::buffer_handle_t>& uploaded_buffer_handles, oval_transfer_data_to_buffer& waited)
+{
+	auto buffer_handle = rendergraph_declare_buffer(&rg);
+	rg_buffer_import(&rg, buffer_handle, waited.buffer);
+	uint64_t size = waited.size;
+	rendergraph_add_uploadbufferpass_ex(&rg, u8"upload buffer", buffer_handle, size, 0, waited.data, nullptr, 0, nullptr);
+	uploaded_buffer_handles.push_back(buffer_handle);
 }
 
 void uploadTexture(HGEGraphics::rendergraph_t& rg, std::pmr::vector<HGEGraphics::texture_handle_t>& uploaded_texture_handles, oval_transfer_data_to_texture& waited)
@@ -70,18 +84,16 @@ void oval_graphics_transfer_queue_execute(oval_cgpu_device_t* device, HGEGraphic
 	std::pmr::vector<HGEGraphics::texture_handle_t> uploaded_texture_handles(&queue->memory_resource);
 	std::pmr::vector<HGEGraphics::buffer_handle_t> uploaded_buffer_handle(&queue->memory_resource);
 	uploaded_texture_handles.reserve(queue->textures.size());
-	//uploaded_buffer_handle.reserve(device->wait_upload_mesh.size() * 2);
+	uploaded_buffer_handle.reserve(device->wait_upload_mesh.size() * 2);
 	for (auto& waited : queue->textures)
 	{
 		uploadTexture(rg, uploaded_texture_handles, waited);
 	}
 
-	//while (uploaded < max_size && !device->wait_upload_mesh.empty())
-	//{
-	//	auto waited = device->wait_upload_mesh.front();
-	//	device->wait_upload_mesh.pop();
-	//	uploaded += uploadMesh(device, rg, uploaded_buffer_handle, waited);
-	//}
+	for (auto& waited : queue->buffers)
+	{
+		uploadBuffer(rg, uploaded_buffer_handle, waited);
+	}
 
 	auto passBuilder = rendergraph_add_holdpass(&rg, u8"upload queue holdon");
 	for (auto& handle : uploaded_texture_handles)
@@ -110,6 +122,11 @@ void oval_graphics_transfer_queue_release_all(oval_cgpu_device_t* device)
 			queue->memory_resource.deallocate(waited.data, waited.size);
 		}
 		queue->textures.clear();
+		for (auto& waited : queue->buffers)
+		{
+			queue->memory_resource.deallocate(waited.data, waited.size);
+		}
+		queue->buffers.clear();
 		device->allocator.delete_object(queue);
 	}
 	device->transfer_queue.clear();
