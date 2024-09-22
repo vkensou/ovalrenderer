@@ -129,22 +129,3 @@ uint64_t load_mesh(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t qu
 
 	return 0;
 }
-
-HGEGraphics::Mesh* oval_load_mesh(oval_device_t* device, const char8_t* filepath)
-{
-	auto D = (oval_cgpu_device_t*)device;
-
-	WaitLoadResource resource;
-	resource.type = WaitLoadResourceType::Mesh;
-	size_t path_size = strlen((const char*)filepath) + 1;
-	char8_t* path = (char8_t*)D->allocator.allocate_bytes(path_size);
-	memcpy(path, filepath, path_size);
-	resource.path = path;
-	resource.path_size = path_size;
-	resource.meshResource = {
-		.mesh = HGEGraphics::create_empty_mesh(),
-	};
-	resource.meshResource.mesh->prepared = false;
-	D->wait_load_resources.push(resource);
-	return resource.meshResource.mesh;
-}

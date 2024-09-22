@@ -85,3 +85,74 @@ HGEGraphics::Buffer* oval_mesh_get_vertex_buffer(oval_device_t* device, HGEGraph
 {
 	return mesh->vertex_buffer;
 }
+
+HGEGraphics::Texture* oval_load_texture(oval_device_t* device, const char8_t* filepath, bool mipmap)
+{
+	auto D = (oval_cgpu_device_t*)device;
+
+	WaitLoadResource resource;
+	resource.type = WaitLoadResourceType::Texture;
+	size_t path_size = strlen((const char*)filepath) + 1;
+	char8_t* path = (char8_t*)D->allocator.allocate_bytes(path_size);
+	memcpy(path, filepath, path_size);
+	resource.path = path;
+	resource.path_size = path_size;
+	resource.textureResource = {
+		.texture = HGEGraphics::create_empty_texture(),
+		.mipmap = mipmap,
+	};
+	resource.textureResource.texture->prepared = false;
+	D->wait_load_resources.push(resource);
+	return resource.textureResource.texture;
+}
+
+HGEGraphics::Mesh* oval_load_mesh(oval_device_t* device, const char8_t* filepath)
+{
+	auto D = (oval_cgpu_device_t*)device;
+
+	WaitLoadResource resource;
+	resource.type = WaitLoadResourceType::Mesh;
+	size_t path_size = strlen((const char*)filepath) + 1;
+	char8_t* path = (char8_t*)D->allocator.allocate_bytes(path_size);
+	memcpy(path, filepath, path_size);
+	resource.path = path;
+	resource.path_size = path_size;
+	resource.meshResource = {
+		.mesh = HGEGraphics::create_empty_mesh(),
+	};
+	resource.meshResource.mesh->prepared = false;
+	D->wait_load_resources.push(resource);
+	return resource.meshResource.mesh;
+}
+
+void oval_process_load_queue(oval_cgpu_device_t* device)
+{
+	if (device->wait_load_resources.empty())
+		return;
+
+	auto queue = oval_graphics_transfer_queue_alloc(&device->super);
+
+	const uint64_t max_size = 1024 * 1024 * sizeof(uint32_t) * 10;
+	uint64_t uploaded = 0;
+	while (uploaded < max_size && !device->wait_load_resources.empty())
+	{
+		auto waited = device->wait_load_resources.front();
+		device->wait_load_resources.pop();
+		if (waited.type == WaitLoadResourceType::Texture)
+		{
+			auto& textureResource = waited.textureResource;
+			uploaded += load_texture(device, queue, textureResource.texture, waited.path, textureResource.mipmap);
+			waited.textureResource.texture->prepared = true;
+			device->allocator.deallocate_bytes((void*)waited.path, waited.path_size);
+		}
+		else if (waited.type == WaitLoadResourceType::Mesh)
+		{
+			auto& meshResource = waited.meshResource;
+			uploaded += load_mesh(device, queue, meshResource.mesh, waited.path);
+			waited.meshResource.mesh->prepared = true;
+			device->allocator.deallocate_bytes((void*)waited.path, waited.path_size);
+		}
+	}
+
+	oval_graphics_transfer_queue_submit(&device->super, queue);
+}

@@ -10,7 +10,6 @@
 #include "tiny_obj_loader.h"
 #include <string.h>
 #include "cgpu_device.h"
-#include "uploadresource.h"
 
 void oval_log(void* user_data, ECGPULogSeverity severity, const char* fmt, ...)
 {
@@ -596,7 +595,7 @@ void oval_runloop(oval_device_t* device)
 		auto back_buffer = &D->backbuffer[D->info.current_swapchain_index];
 		auto prepared_semaphore = D->swapchain_prepared_semaphores[D->current_frame_index];
 
-		oval_load_texture_queue(D);
+		oval_process_load_queue(D);
 
 		render(D, back_buffer);
 

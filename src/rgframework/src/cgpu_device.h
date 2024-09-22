@@ -144,6 +144,8 @@ typedef struct oval_cgpu_device_t {
 	HGEGraphics::Texture* default_texture;
 } oval_cgpu_device_t;
 
-void oval_load_texture_queue(oval_cgpu_device_t* device);
+void oval_process_load_queue(oval_cgpu_device_t* device);
 void oval_graphics_transfer_queue_execute_all(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg);
 void oval_graphics_transfer_queue_release_all(oval_cgpu_device_t* device);
+uint64_t load_mesh(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t queue, HGEGraphics::Mesh* mesh, const char8_t* filepath);
+uint64_t load_texture(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t queue, HGEGraphics::Texture* texture, const char8_t* filepath, bool mipmap);
