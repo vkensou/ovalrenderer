@@ -19,17 +19,14 @@ HGEGraphics::Mesh* oval_create_mesh_from_buffer(oval_device_t* device, uint32_t 
 	auto D = (oval_cgpu_device_t*)device;
 	auto mesh = HGEGraphics::create_mesh(D->device, vertex_count, index_count, prim_topology, vertex_layout, index_stride, update_vertex_data_from_compute_shader, update_index_data_from_compute_shader);
 
-	auto vertex_raw_data = malloc(vertex_count * mesh->vertex_stride);
-	memcpy(vertex_raw_data, vertex_data, vertex_count * mesh->vertex_stride);
-	void* index_raw_data = nullptr;
+	auto upload_vertex_data = oval_graphics_set_mesh_vertex_data(device, mesh, nullptr);
+	memcpy(upload_vertex_data, vertex_data, vertex_count * mesh->vertex_stride);
 	if (index_data)
 	{
-		index_raw_data = malloc(index_count * mesh->index_stride);
-		memcpy(index_raw_data, index_data, index_count * mesh->index_stride);
+		auto upload_index_data = oval_graphics_set_mesh_index_data(device, mesh, nullptr);
+		memcpy(upload_index_data, index_data, index_count * mesh->index_stride);
 	}
-
-	//D->wait_upload_mesh.push({ mesh, nullptr, nullptr, vertex_raw_data, index_raw_data, mesh->vertices_count * mesh->vertex_stride, mesh->index_count * mesh->index_stride });
-
+	mesh->prepared = true;
 	return mesh;
 }
 
@@ -163,6 +160,33 @@ void oval_ensure_cur_transfer_queue(oval_cgpu_device_t* device)
 		return;
 
 	device->cur_transfer_queue = oval_graphics_transfer_queue_alloc(&device->super);
+}
+
+uint8_t* oval_graphics_set_mesh_vertex_data(oval_device_t* device, HGEGraphics::Mesh* mesh, uint64_t* size)
+{
+	auto D = (oval_cgpu_device_t*)device;
+
+	oval_ensure_cur_transfer_queue(D);
+
+	uint64_t vertex_data_size = mesh->vertices_count * mesh->vertex_stride;
+	if (size)
+		*size = vertex_data_size;
+	return oval_graphics_transfer_queue_transfer_data_to_buffer(D->cur_transfer_queue, vertex_data_size, mesh->vertex_buffer);
+}
+
+uint8_t* oval_graphics_set_mesh_index_data(oval_device_t* device, HGEGraphics::Mesh* mesh, uint64_t* size)
+{
+	uint64_t index_data_size = mesh->index_count * mesh->index_stride;
+	if (index_data_size == 0)
+		return nullptr;
+
+	auto D = (oval_cgpu_device_t*)device;
+
+	oval_ensure_cur_transfer_queue(D);
+
+	if (size)
+		*size = index_data_size;
+	return oval_graphics_transfer_queue_transfer_data_to_buffer(D->cur_transfer_queue, index_data_size, mesh->index_buffer);
 }
 
 uint8_t* oval_graphics_set_texture_data_slice(oval_device_t* device, HGEGraphics::Texture* texture, uint32_t mipmap, uint32_t slice, uint64_t* size)
