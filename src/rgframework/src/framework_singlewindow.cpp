@@ -176,9 +176,9 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 	device_cgpu->render_finished_semaphore = cgpu_create_semaphore(device_cgpu->device);
 
 	{
-		uint64_t width = 4;
-		uint64_t height = 4;
-		uint64_t count = width * height;
+		const uint64_t width = 4;
+		const uint64_t height = 4;
+		const uint64_t count = width * height;
 
 		CGPUTextureDescriptor default_texture_desc =
 		{
@@ -191,15 +191,13 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 			.mip_levels = 1,
 			.descriptors = CGPU_RESOURCE_TYPE_TEXTURE,
 		};
-		device_cgpu->default_texture = oval_create_texture(&device_cgpu->super, default_texture_desc);
-		uint64_t size = 0;
-		auto colors = (uint32_t*)oval_graphics_set_texture_data_slice(&device_cgpu->super, device_cgpu->default_texture,  0, 0, &size);
+		uint32_t colors[count];
 		std::fill(colors, colors + count, 0xffff00ff);
+		device_cgpu->default_texture = oval_create_texture_from_buffer(&device_cgpu->super, default_texture_desc, colors, sizeof(colors));
 		for (int i = 0; i < 3; ++i)
 		{
 			device_cgpu->frameDatas[i].execContext.default_texture = device_cgpu->default_texture->view;
 		}
-		device_cgpu->default_texture->prepared = true;
 	}
 
 	IMGUI_CHECKVERSION();
@@ -308,11 +306,7 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 			.mip_levels = 1,
 			.descriptors = CGPU_RESOURCE_TYPE_TEXTURE,
 		};
-		device_cgpu->imgui_font_texture = oval_create_texture(&device_cgpu->super, imgui_font_texture_desc);
-		uint64_t size = 0;
-		auto colors = oval_graphics_set_texture_data_slice(&device_cgpu->super, device_cgpu->imgui_font_texture, 0, 0, &size);
-		memcpy(colors, fontPixels, sizeof(uint32_t) * count);
-		device_cgpu->imgui_font_texture->prepared = true;
+		device_cgpu->imgui_font_texture = oval_create_texture_from_buffer(&device_cgpu->super, imgui_font_texture_desc, fontPixels, count * 4);
 	}
 
 	CGPUSamplerDescriptor imgui_font_sampler_desc = {

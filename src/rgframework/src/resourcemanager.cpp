@@ -1,4 +1,4 @@
-#include "cgpu_device.h"
+﻿#include "cgpu_device.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -7,6 +7,17 @@ HGEGraphics::Texture* oval_create_texture(oval_device_t* device, const CGPUTextu
 {
 	auto D = (oval_cgpu_device_t*)device;
 	return HGEGraphics::create_texture(D->device, desc);
+}
+
+HGEGraphics::Texture* oval_create_texture_from_buffer(oval_device_t* device, const CGPUTextureDescriptor& desc, void* data, uint64_t size)
+{
+	auto D = (oval_cgpu_device_t*)device;
+	auto texture = oval_create_texture(device, desc);
+	uint64_t used_size = 0;
+	auto colors = (uint32_t*)oval_graphics_set_texture_data_slice(device, texture, 0, 0, &used_size);
+	assert(used_size == size);
+	memcpy(colors, data, used_size);
+	return texture;
 }
 
 void oval_free_texture(oval_device_t* device, HGEGraphics::Texture* texture)
@@ -194,6 +205,6 @@ uint8_t* oval_graphics_set_texture_data_slice(oval_device_t* device, HGEGraphics
 	auto D = (oval_cgpu_device_t*)device;
 
 	oval_ensure_cur_transfer_queue(D);
-	texture->prepared = true;
+	texture->prepared = true;	// TODO: 这里应该设置吗
 	return oval_graphics_transfer_queue_transfer_data_to_texture_slice(D->cur_transfer_queue, texture, mipmap, slice, size);
 }
