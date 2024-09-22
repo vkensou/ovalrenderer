@@ -106,7 +106,7 @@ uint64_t load_texture_ktx(oval_cgpu_device_t* device, oval_graphics_transfer_que
 					KTX_error_code result = ktxTexture_GetImageOffset(ktxTexture, mip, slice, face, &ktxTextureMipmapOffset);
 					if (textureComponent == component)
 					{
-						memcpy(data, ktxTextureData + ktxTextureMipmapOffset, ktxTextureMipmapSize);
+						memcpy(offset_data, ktxTextureData + ktxTextureMipmapOffset, ktxTextureMipmapSize);
 					}
 					else
 					{

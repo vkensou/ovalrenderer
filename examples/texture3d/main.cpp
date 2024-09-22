@@ -278,7 +278,7 @@ void on_imgui(oval_device_t* device)
 
 	if (ImGui::Button("Capture"))
 		oval_render_debug_capture(device);
-	ImGui::SliderFloat2("Light Dir", &app->lightDirEulerX, -180, 180);
+	ImGui::SliderFloat2("Light Dir", &app->lightDirEulerX, -360, 360);
 }
 
 void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::texture_handle_t rg_back_buffer)

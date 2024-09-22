@@ -39,6 +39,7 @@ struct Application
 	HGEGraphics::Mesh* quad;
 	HGEGraphics::Mesh* sphere;
 	float lightDirEulerX, lightDirEulerY;
+	float cameraRotateY;
 };
 
 void _init_resource(Application& app)
@@ -119,6 +120,7 @@ void _init_world(Application& app)
 	app.hdr_data.albedo = HMM_V4(1, 1, 1, 0.5);
 	app.lightDirEulerX = -50;
 	app.lightDirEulerY = 150;
+	app.cameraRotateY = 0;
 }
 
 void on_update(oval_device_t* device)
@@ -128,7 +130,7 @@ void on_update(oval_device_t* device)
 	auto now = clock();
 	auto duration = (double)(now - app->time) / CLOCKS_PER_SEC;
 
-	auto cameraParentMat = HMM_QToM4(HMM_QFromEuler_YXZ(HMM_AngleDeg(0), HMM_AngleDeg(24), 0));
+	auto cameraParentMat = HMM_QToM4(HMM_QFromEuler_YXZ(HMM_AngleDeg(0), HMM_AngleDeg(app->cameraRotateY), 0));
 	auto cameraLocalMat = HMM_Translate(HMM_V3(0, 0, -1));
 
 	auto cameraMat = cameraParentMat * cameraLocalMat;
@@ -169,8 +171,9 @@ void on_imgui(oval_device_t* device)
 
 	if (ImGui::Button("Capture"))
 		oval_render_debug_capture(device);
+	ImGui::SliderFloat("Camera Dir", &app->cameraRotateY, -360, 360);
 	ImGui::SliderFloat("Smoothness", &app->hdr_data.albedo.W, 0, 1);
-	ImGui::SliderFloat2("Light Dir", &app->lightDirEulerX, -180, 180);
+	ImGui::SliderFloat2("Light Dir", &app->lightDirEulerX, -360, 360);
 }
 
 void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::texture_handle_t rg_back_buffer)
