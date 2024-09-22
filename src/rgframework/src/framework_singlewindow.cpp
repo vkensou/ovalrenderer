@@ -1,131 +1,15 @@
 #include "framework.h"
 
-#include <SDL.h>
 #include <SDL_syswm.h>
 #include "cgpu/api.h"
 #include "rendergraph.h"
 #include "rendergraph_compiler.h"
 #include "rendergraph_executor.h"
-#include "renderer.h"
-#include "imgui.h"
 #include "imgui_impl_sdl2.h"
-#include "renderdoc_helper.h"
 #include <time.h>
-#include "stb_image.h"
 #include "tiny_obj_loader.h"
 #include <string.h>
-#include <queue>
-#include "ktx.h"
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
-#define TINYOBJLOADER_IMPLEMENTATION
-#include "tiny_obj_loader.h"
-
-struct FrameData
-{
-	CGPUFenceId inflightFence;
-	HGEGraphics::ExecutorContext execContext;
-
-	FrameData(CGPUDeviceId device, CGPUQueueId gfx_queue, bool profile, std::pmr::memory_resource* memory_resource)
-		: execContext(device, gfx_queue, profile, memory_resource)
-	{
-		inflightFence = cgpu_create_fence(device);
-	}
-
-	void newFrame()
-	{
-		execContext.newFrame();
-	}
-
-	void free()
-	{
-		execContext.destroy();
-
-		cgpu_free_fence(inflightFence);
-		inflightFence = CGPU_NULLPTR;
-	}
-};
-
-struct FrameInfo
-{
-	uint16_t current_swapchain_index;
-
-	void reset()
-	{
-		current_swapchain_index = -1;
-	}
-};
-
-struct WaitUploadTexture
-{
-	HGEGraphics::Texture* texture;
-	int loader_type;
-	stbi_uc* loader;
-	ktxTexture* ktxTexture;
-	bool generate_mipmap;
-	int component;
-};
-
-struct WaitUploadMesh
-{
-	HGEGraphics::Mesh* mesh;
-	std::pmr::vector<TexturedVertex>* vertex_data;
-	std::pmr::vector<uint32_t>* index_data;
-	void* vertex_raw_data;
-	void* index_raw_data;
-	uint64_t vertex_data_size;
-	uint64_t index_data_size;
-};
-
-typedef struct oval_cgpu_device_t {
-	oval_cgpu_device_t(const oval_device_t& super, std::pmr::memory_resource* memory_resource)
-		: super(super), memory_resource(memory_resource), wait_upload_texture(memory_resource), wait_upload_mesh(memory_resource), delay_released_stbi_loader(memory_resource), delay_released_ktxTexture(memory_resource), delay_released_vertex_buffer(memory_resource), delay_released_index_buffer(memory_resource), delay_freeed_raw_data(memory_resource)
-	{
-	}
-
-	oval_device_t super;
-	SDL_Window* window;
-	std::pmr::memory_resource* memory_resource;
-	CGPUInstanceId instance;
-	CGPUDeviceId device;
-	CGPUQueueId gfx_queue;
-	CGPUQueueId present_queue;
-
-	CGPUSurfaceId surface;
-	CGPUSwapChainId swapchain;
-	HGEGraphics::Backbuffer backbuffer[3];
-	CGPUSemaphoreId swapchain_prepared_semaphores[3];
-
-	std::vector<FrameData> frameDatas;
-	CGPUSemaphoreId render_finished_semaphore;
-	uint32_t current_frame_index;
-	FrameInfo info;
-
-	HGEGraphics::Shader* blit_shader = nullptr;
-	CGPUSamplerId blit_linear_sampler = CGPU_NULLPTR;
-
-	HGEGraphics::Texture* imgui_font_texture = nullptr;
-	HGEGraphics::Shader* imgui_shader = nullptr;
-	CGPUSamplerId imgui_font_sampler = CGPU_NULLPTR;
-	HGEGraphics::Mesh* imgui_mesh = nullptr;
-
-	ImDrawData* imgui_draw_data = nullptr;
-
-	bool rdc_capture = false;
-	RENDERDOC_API_1_0_0* rdc = nullptr;
-
-	std::queue<WaitUploadTexture, std::pmr::deque<WaitUploadTexture>> wait_upload_texture;
-	std::queue<WaitUploadMesh, std::pmr::deque<WaitUploadMesh>> wait_upload_mesh;
-	std::pmr::vector<stbi_uc*> delay_released_stbi_loader;
-	std::pmr::vector<ktxTexture*> delay_released_ktxTexture;
-	std::pmr::vector<std::pmr::vector<TexturedVertex>*> delay_released_vertex_buffer;
-	std::pmr::vector<std::pmr::vector<uint32_t>*> delay_released_index_buffer;
-	std::pmr::vector<void*> delay_freeed_raw_data;
-
-	HGEGraphics::Texture* default_texture;
-} oval_cgpu_device_t;
+#include "cgpu_device.h"
 
 void oval_log(void* user_data, ECGPULogSeverity severity, const char* fmt, ...)
 {
@@ -206,7 +90,7 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 	}
 
 	auto memory_resource = new std::pmr::unsynchronized_pool_resource();
-	oval_device_t super = { .descriptor = *device_descriptor, .device = CGPU_NULLPTR, .gfx_queue = CGPU_NULLPTR, .deltaTime = 0 };
+	oval_device_t super = { .descriptor = *device_descriptor, .deltaTime = 0 };
 
 	auto device_cgpu = new oval_cgpu_device_t(super, memory_resource);
 	device_cgpu->window = window;
@@ -255,8 +139,8 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 		.queue_groups = &G,
 		.queue_group_count = 1
 	};
-	device_cgpu->device = device_cgpu->super.device = cgpu_create_device(adapter, &device_desc);
-	device_cgpu->gfx_queue = device_cgpu->super.gfx_queue = cgpu_get_queue(device_cgpu->device, CGPU_QUEUE_TYPE_GRAPHICS, 0);
+	device_cgpu->device = cgpu_create_device(adapter, &device_desc);
+	device_cgpu->gfx_queue = cgpu_get_queue(device_cgpu->device, CGPU_QUEUE_TYPE_GRAPHICS, 0);
 	device_cgpu->present_queue = device_cgpu->gfx_queue;
 
 	SDL_SysWMinfo wmInfo;
@@ -292,9 +176,24 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 	device_cgpu->render_finished_semaphore = cgpu_create_semaphore(device_cgpu->device);
 
 	{
-		uint32_t colors[16];
-		std::fill(colors, colors + 16, 0xffff00ff);
-		device_cgpu->default_texture = oval_create_texture_from_buffer(&device_cgpu->super, u8"default black", 4, 4, (const unsigned char*)colors, sizeof(colors), false);
+		const uint64_t width = 4;
+		const uint64_t height = 4;
+		const uint64_t count = width * height;
+
+		CGPUTextureDescriptor default_texture_desc =
+		{
+			.name = u8"default_texture",
+			.width = width,
+			.height = height,
+			.depth = 1,
+			.array_size = 1,
+			.format = CGPU_FORMAT_R8G8B8A8_UNORM,
+			.mip_levels = 1,
+			.descriptors = CGPU_RESOURCE_TYPE_TEXTURE,
+		};
+		uint32_t colors[count];
+		std::fill(colors, colors + count, 0xffff00ff);
+		device_cgpu->default_texture = oval_create_texture_from_buffer(&device_cgpu->super, default_texture_desc, colors, sizeof(colors));
 		for (int i = 0; i < 3; ++i)
 		{
 			device_cgpu->frameDatas[i].execContext.default_texture = device_cgpu->default_texture->view;
@@ -387,10 +286,28 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 	};
 	device_cgpu->imgui_mesh = HGEGraphics::create_dynamic_mesh(CGPU_PRIM_TOPO_TRI_LIST, imgui_vertex_layout, sizeof(ImDrawIdx));
 
-	unsigned char* fontPixels;
-	int fontTexWidth, fontTexHeight;
-	io.Fonts->GetTexDataAsRGBA32(&fontPixels, &fontTexWidth, &fontTexHeight);
-	device_cgpu->imgui_font_texture = oval_create_texture_from_buffer(&device_cgpu->super, u8"ImGui Default Font Texture", fontTexWidth, fontTexHeight, fontPixels, fontTexWidth * fontTexHeight * 4, false);
+	{
+		unsigned char* fontPixels;
+		int fontTexWidth, fontTexHeight;
+		io.Fonts->GetTexDataAsRGBA32(&fontPixels, &fontTexWidth, &fontTexHeight);
+
+		uint64_t width = fontTexWidth;
+		uint64_t height = fontTexHeight;
+		uint64_t count = width * height;
+
+		CGPUTextureDescriptor imgui_font_texture_desc =
+		{
+			.name = u8"ImGui Default Font Texture",
+			.width = width,
+			.height = height,
+			.depth = 1,
+			.array_size = 1,
+			.format = CGPU_FORMAT_R8G8B8A8_UNORM,
+			.mip_levels = 1,
+			.descriptors = CGPU_RESOURCE_TYPE_TEXTURE,
+		};
+		device_cgpu->imgui_font_texture = oval_create_texture_from_buffer(&device_cgpu->super, imgui_font_texture_desc, fontPixels, count * 4);
+	}
 
 	CGPUSamplerDescriptor imgui_font_sampler_desc = {
 		.min_filter = CGPU_FILTER_TYPE_LINEAR,
@@ -458,7 +375,7 @@ HGEGraphics::Mesh* setupImGuiResources(oval_cgpu_device_t* device, HGEGraphics::
 	return imgui_mesh;
 }
 
-void renderImgui(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::resource_handle_t rg_back_buffer)
+void renderImgui(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::texture_handle_t rg_back_buffer)
 {
 	using namespace HGEGraphics;
 
@@ -467,8 +384,8 @@ void renderImgui(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg, HGE
 		auto passBuilder = rendergraph_add_renderpass(&rg, u8"Main Pass");
 		uint32_t color = 0xffffffff;
 		renderpass_add_color_attachment(&passBuilder, rg_back_buffer, ECGPULoadAction::CGPU_LOAD_ACTION_LOAD, color, ECGPUStoreAction::CGPU_STORE_ACTION_STORE);
-		renderpass_use_buffer(&passBuilder, device->imgui_mesh->dynamic_vertex_buffer_handle);
-		renderpass_use_buffer(&passBuilder, device->imgui_mesh->dynamic_index_buffer_handle);
+		renderpass_use_buffer(&passBuilder, device->imgui_mesh->vertex_buffer->dynamic_handle);
+		renderpass_use_buffer(&passBuilder, device->imgui_mesh->index_buffer->dynamic_handle);
 
 		void* passdata = nullptr;
 		renderpass_set_executable(&passBuilder, [](RenderPassEncoder* encoder, void* passdata)
@@ -514,134 +431,6 @@ void renderImgui(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg, HGE
 	}
 }
 
-uint64_t uploadKTXTexture(HGEGraphics::rendergraph_t& rg, WaitUploadTexture& waited, HGEGraphics::resource_handle_t texture_handle);
-
-uint64_t uploadTexture(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg, std::pmr::vector<HGEGraphics::resource_handle_t>& uploaded_texture_handles, WaitUploadTexture& waited)
-{
-	uint64_t size = 0;
-	if (waited.loader || waited.ktxTexture)
-	{
-		auto texture_handle = rendergraph_import_texture(&rg, waited.texture);
-		if (waited.loader_type == 0 && waited.loader)
-		{
-			auto texture = waited.texture;
-			auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
-			const uint64_t xBlocksCount = mipedSize(texture->handle->info->width, 0) / FormatUtil_WidthOfBlock(texture->handle->info->format);
-			const uint64_t yBlocksCount = mipedSize(texture->handle->info->height, 0) / FormatUtil_HeightOfBlock(texture->handle->info->format);
-			const uint64_t zBlocksCount = mipedSize(texture->handle->info->depth, 0);
-			size = xBlocksCount * yBlocksCount * zBlocksCount * FormatUtil_BitSizeOfBlock(texture->handle->info->format) / 8;
-			rendergraph_add_uploadtexturepass_ex(&rg, u8"upload texture", texture_handle, 0, 0, size, 0, waited.loader, [](HGEGraphics::UploadEncoder* encoder, void* passdata){}, 0, nullptr);
-		}
-		else if (waited.loader_type == 1 && waited.ktxTexture)
-		{
-			size = uploadKTXTexture(rg, waited, texture_handle);
-		}
-
-		if (waited.texture->handle->info->mip_levels > 1 && waited.generate_mipmap)
-			rendergraph_add_generate_mipmap(&rg, texture_handle);
-		uploaded_texture_handles.push_back(texture_handle);
-
-		if (waited.loader)
-			device->delay_released_stbi_loader.push_back(waited.loader);
-		if (waited.ktxTexture)
-			device->delay_released_ktxTexture.push_back(waited.ktxTexture);
-	}
-	waited.texture->prepared = true;
-	return size;
-}
-
-void uploadResources(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg)
-{
-	if (device->wait_upload_texture.empty() && device->wait_upload_mesh.empty())
-		return;
-
-	const uint32_t max_size = 1024 * 1024 * sizeof(uint32_t) * 10;
-	uint32_t uploaded = 0;
-	std::pmr::vector<HGEGraphics::resource_handle_t> uploaded_texture_handles(device->memory_resource);
-	std::pmr::vector<HGEGraphics::buffer_handle_t> uploaded_buffer_handle(device->memory_resource);
-	uploaded_texture_handles.reserve(device->wait_upload_texture.size());
-	uploaded_buffer_handle.reserve(device->wait_upload_mesh.size() * 2);
-	while (uploaded < max_size && !device->wait_upload_texture.empty())
-	{
-		auto waited = device->wait_upload_texture.front();
-		device->wait_upload_texture.pop();
-		uploaded += uploadTexture(device, rg, uploaded_texture_handles, waited);
-	}
-
-	while (uploaded < max_size && !device->wait_upload_mesh.empty())
-	{
-		auto waited = device->wait_upload_mesh.front();
-		device->wait_upload_mesh.pop();
-
-		auto mesh_vertex_handle = rendergraph_declare_buffer(&rg);
-		rg_buffer_import(&rg, mesh_vertex_handle, waited.mesh->vertex_buffer);
-		if (waited.vertex_data || waited.vertex_raw_data)
-		{
-			uint64_t size = waited.vertex_data_size;
-			uploaded += size;
-			rendergraph_add_uploadbufferpass_ex(&rg, u8"upload mesh vertex data", mesh_vertex_handle, size, 0, waited.vertex_data ? waited.vertex_data->data() : waited.vertex_raw_data, nullptr, 0, nullptr);
-			uploaded_buffer_handle.push_back(mesh_vertex_handle);
-
-			if (waited.vertex_data)
-				device->delay_released_vertex_buffer.push_back(waited.vertex_data);
-			if (waited.vertex_raw_data)
-				device->delay_freeed_raw_data.push_back(waited.vertex_raw_data);
-		}
-
-		if (waited.index_data || waited.index_raw_data)
-		{
-			if (waited.mesh->index_buffer)
-			{
-				auto mesh_index_handle= rendergraph_declare_buffer(&rg);
-				rg_buffer_import(&rg, mesh_index_handle, waited.mesh->index_buffer);
-				uint64_t size = waited.index_data_size;
-				uploaded += size;
-				rendergraph_add_uploadbufferpass_ex(&rg, u8"upload mesh index data", mesh_index_handle, size, 0, waited.index_data ? waited.index_data->data() : waited.index_raw_data, nullptr, 0, nullptr);
-				uploaded_buffer_handle.push_back(mesh_index_handle);
-			}
-
-			if (waited.index_data)
-				device->delay_released_index_buffer.push_back(waited.index_data);
-			if (waited.index_raw_data)
-				device->delay_freeed_raw_data.push_back(waited.index_raw_data);
-		}
-
-		waited.mesh->prepared = true;
-	}
-
-	auto passBuilder = rendergraph_add_holdpass(&rg, u8"upload texture holdon");
-	for (auto& handle : uploaded_texture_handles)
-		renderpass_sample(&passBuilder, handle);
-	uploaded_texture_handles.clear();
-
-	for (auto& handle : uploaded_buffer_handle)
-		renderpass_use_buffer(&passBuilder, handle);
-	uploaded_buffer_handle.clear();
-}
-
-void release_uploader_data(oval_cgpu_device_t* device)
-{
-	for (auto loader: device->delay_released_stbi_loader)
-		stbi_image_free(loader);
-	device->delay_released_stbi_loader.clear();
-
-	for (auto loader : device->delay_released_ktxTexture)
-		ktxTexture_Destroy(loader);
-	device->delay_released_ktxTexture.clear();
-
-	for (auto loader : device->delay_released_vertex_buffer)
-		delete loader;
-	device->delay_released_vertex_buffer.clear();
-
-	for (auto loader : device->delay_released_index_buffer)
-		delete loader;
-	device->delay_released_index_buffer.clear();
-
-	for (auto raw_data : device->delay_freeed_raw_data)
-		free(raw_data);
-	device->delay_freeed_raw_data.clear();
-}
-
 void render(oval_cgpu_device_t* device, HGEGraphics::Backbuffer* backbuffer)
 {
 	using namespace HGEGraphics;
@@ -649,7 +438,7 @@ void render(oval_cgpu_device_t* device, HGEGraphics::Backbuffer* backbuffer)
 	std::pmr::unsynchronized_pool_resource rg_pool(device->memory_resource);
 	rendergraph_t rg{ 1, 1, 1, device->blit_shader, device->blit_linear_sampler, &rg_pool };
 
-	uploadResources(device, rg);
+	oval_graphics_transfer_queue_execute_all(device, rg);
 
 	auto rg_back_buffer = rendergraph_import_backbuffer(&rg, backbuffer);
 
@@ -664,9 +453,16 @@ void render(oval_cgpu_device_t* device, HGEGraphics::Backbuffer* backbuffer)
 	auto compiled = Compiler::Compile(rg, &rg_pool);
 	Executor::Execute(compiled, device->frameDatas[device->current_frame_index].execContext);
 
-	dynamic_mesh_reset(device->imgui_mesh);
+	for (auto imported : rg.imported_textures)
+	{
+		imported->dynamic_handle = {};
+	}
+	for (auto imported : rg.imported_buffers)
+	{
+		imported->dynamic_handle = {};
+	}
 
-	release_uploader_data(device);
+	oval_graphics_transfer_queue_release_all(device);
 }
 
 bool on_resize(oval_cgpu_device_t* D)
@@ -798,6 +594,11 @@ void oval_runloop(oval_device_t* device)
 		auto back_buffer = &D->backbuffer[D->info.current_swapchain_index];
 		auto prepared_semaphore = D->swapchain_prepared_semaphores[D->current_frame_index];
 
+		if (D->cur_transfer_queue)
+			oval_graphics_transfer_queue_submit(device, D->cur_transfer_queue);
+		D->cur_transfer_queue = nullptr;
+		oval_process_load_queue(D);
+
 		render(D, back_buffer);
 
 		CGPUQueueSubmitDescriptor submit_desc = {
@@ -915,8 +716,6 @@ void oval_free_device(oval_device_t* device)
 
 	SDL_Quit();
 
-	D->super.device = CGPU_NULLPTR;
-	D->super.gfx_queue = CGPU_NULLPTR;
 	D->super.deltaTime = 0;
 
 	delete D;
@@ -944,317 +743,4 @@ void oval_query_render_profile(oval_device_t* device, uint32_t* length, const ch
 		*names = nullptr;
 		*durations = nullptr;
 	}
-}
-
-bool endsWithKtx(const char* str) {
-	const char* suffix = ".ktx";
-	size_t len = strlen(str);
-	size_t suffixLen = strlen(suffix);
-	if (len >= suffixLen) {
-		return strncmp(str + len - suffixLen, suffix, suffixLen) == 0;
-	}
-	return false;
-}
-
-std::pair<ECGPUFormat, int> detectKtxTextureFormat(ktxTexture* ktxTexture)
-{
-	if (ktxTexture->classId == ktxTexture1_c)
-	{
-		auto ktx1 = (ktxTexture1*)ktxTexture;
-		switch (ktx1->glInternalformat)
-		{
-		case 0x1908:
-		case 0x8058:
-			return { CGPU_FORMAT_R8G8B8A8_SRGB, 4 };
-		case 0x881A:
-			return { CGPU_FORMAT_R16G16B16A16_SFLOAT, 8 };
-		}
-		printf("format: %d\n", ktx1->glFormat);
-	}
-	else if (ktxTexture->classId == ktxTexture2_c)
-	{
-		auto ktx2 = (ktxTexture2*)ktxTexture;
-		switch (ktx2->vkFormat)
-		{
-		case 23:
-			return { CGPU_FORMAT_R8G8B8A8_SRGB, 3 };
-		}
-		printf("format: %d\n", ktx2->vkFormat);
-	}
-	return { CGPU_FORMAT_UNDEFINED, 0 };
-}
-
-HGEGraphics::Texture* load_texture_ktx(oval_device_t* device, const char8_t* filepath, bool mipmap)
-{
-	ktxResult result = KTX_SUCCESS;
-	ktxTexture* ktxTexture;
-	result = ktxTexture_CreateFromNamedFile((const char*)filepath, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
-	if (result != KTX_SUCCESS)
-		return nullptr;
-
-	auto[format, component] = detectKtxTextureFormat(ktxTexture);
-	// TODO: support compressed ktxTexture
-	if (ktxTexture->isCompressed || format == CGPU_FORMAT_UNDEFINED)
-	{
-		ktxTexture_Destroy(ktxTexture);
-		return nullptr;
-	}
-
-	uint32_t width = ktxTexture->baseWidth;
-	uint32_t height = ktxTexture->baseHeight;
-	uint32_t mipLevels = ktxTexture->numLevels;
-	uint32_t arraySize = 1;
-
-	bool generateMipmap = mipmap && mipLevels <= 1;
-	mipLevels = mipmap ? (mipLevels > 1 ? mipLevels : (static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1)) : 1;
-	CGPUResourceTypes descriptors = CGPU_RESOURCE_TYPE_TEXTURE;
-	if (generateMipmap)
-		descriptors |= CGPU_RESOURCE_TYPE_RENDER_TARGET;
-	if (ktxTexture->isCubemap)
-	{
-		descriptors |= CGPU_RESOURCE_TYPE_TEXTURE_CUBE;
-		arraySize = 6;
-	}
-	CGPUTextureDescriptor texture_desc =
-	{
-		.name = filepath,
-		.width = (uint64_t)width,
-		.height = (uint64_t)height,
-		.depth = 1,
-		.array_size = arraySize,
-		.format = format,
-		.mip_levels = mipLevels,
-		.owner_queue = device->gfx_queue,
-		.start_state = CGPU_RESOURCE_STATE_UNDEFINED,
-		.descriptors = descriptors,
-	};
-
-	auto texture = HGEGraphics::create_texture(device->device, texture_desc);
-
-	auto D = (oval_cgpu_device_t*)device;
-	D->wait_upload_texture.push({ texture, 1, nullptr, ktxTexture, generateMipmap, component });
-
-	return texture;
-
-	ktxTexture_Destroy(ktxTexture);
-
-	return nullptr;
-}
-
-HGEGraphics::Texture* load_texture_raw(oval_device_t* device, const char8_t* filepath, bool mipmap)
-{
-	int width = 0, height = 0, components = 0;
-	auto texture_loader = stbi_load((const char*)filepath, &width, &height, &components, 4);
-	if (!texture_loader)
-		return nullptr;
-
-	const char* filename = nullptr;
-	if (filepath)
-	{
-		filename = strrchr((const char*)filepath, '/');
-		if (!filename)
-			filename = strrchr((const char*)filepath, '\\');
-		filename = filename ? filename + 1 : (const char*)filepath;
-	}
-
-	auto mipLevels = mipmap ? static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1 : 1;
-	CGPUTextureDescriptor texture_desc =
-	{
-		.name = (const char8_t*)filename,
-		.width = (uint64_t)width,
-		.height = (uint64_t)height,
-		.depth = 1,
-		.array_size = 1,
-		.format = CGPU_FORMAT_R8G8B8A8_SRGB,
-		.mip_levels = mipLevels,
-		.owner_queue = device->gfx_queue,
-		.start_state = CGPU_RESOURCE_STATE_UNDEFINED,
-		.descriptors = CGPUResourceTypes(mipmap ? CGPU_RESOURCE_TYPE_TEXTURE | CGPU_RESOURCE_TYPE_RENDER_TARGET : CGPU_RESOURCE_TYPE_TEXTURE),
-	};
-
-	auto texture = HGEGraphics::create_texture(device->device, texture_desc);
-
-	auto D = (oval_cgpu_device_t*)device;
-	D->wait_upload_texture.push({ texture, 0, texture_loader, nullptr, mipmap && texture->handle->info->mip_levels > 1, 4 });
-
-	return texture;
-}
-
-
-HGEGraphics::Texture* oval_load_texture(oval_device_t* device, const char8_t* filepath, bool mipmap)
-{
-	if (endsWithKtx((const char*)filepath))
-		return load_texture_ktx(device, filepath, mipmap);
-	else
-		return load_texture_raw(device, filepath, mipmap);
-}
-
-HGEGraphics::Texture* oval_create_texture_from_buffer(oval_device_t* device, const char8_t* name, uint32_t width, uint32_t height, const unsigned char* data, uint64_t data_size, bool mipmap)
-{
-	auto mipLevels = mipmap ? static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1 : 1;
-	CGPUTextureDescriptor texture_desc =
-	{
-		.name = name,
-		.width = (uint64_t)width,
-		.height = (uint64_t)height,
-		.depth = 1,
-		.array_size = 1,
-		.format = CGPU_FORMAT_R8G8B8A8_UNORM,
-		.mip_levels = mipLevels,
-		.descriptors = CGPUResourceTypes(mipmap ? CGPU_RESOURCE_TYPE_TEXTURE | CGPU_RESOURCE_TYPE_RENDER_TARGET : CGPU_RESOURCE_TYPE_TEXTURE),
-	};
-
-	return oval_create_texture_from_buffer(device, texture_desc, data, data_size);
-}
-
-HGEGraphics::Texture* oval_create_texture_from_buffer(oval_device_t* device, CGPUTextureDescriptor descriptor, const unsigned char* data, uint64_t data_size)
-{
-	descriptor.owner_queue = device->gfx_queue;
-	descriptor.start_state = CGPU_RESOURCE_STATE_UNDEFINED;
-	auto texture = HGEGraphics::create_texture(device->device, descriptor);
-	bool mipmap = descriptor.mip_levels > 1;
-
-	if (data && data_size > 0)
-	{
-		stbi_uc* copy_data = (stbi_uc*)stbi__malloc(data_size);
-		memcpy(copy_data, data, data_size);
-
-		auto D = (oval_cgpu_device_t*)device;
-		D->wait_upload_texture.push({ texture, 0, copy_data, nullptr, mipmap });
-	}
-
-	return texture;
-}
-
-std::tuple<std::pmr::vector<TexturedVertex>*, std::pmr::vector<uint32_t>*> LoadObjModel(const char8_t* filename, bool right_hand, std::pmr::memory_resource* memory_resource)
-{
-	tinyobj::attrib_t attrib;
-	std::vector<tinyobj::shape_t> shapes;
-	std::vector<tinyobj::material_t> materials;
-	std::string warn, err;
-
-	std::pmr::vector<TexturedVertex>* vertices;
-	std::pmr::vector<uint32_t>* indices;
-	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, (const char*)filename))
-	{
-		return { vertices, indices };
-	}
-
-	vertices = new std::pmr::vector<TexturedVertex>(memory_resource);
-	indices = new std::pmr::vector<uint32_t>(memory_resource);
-
-	std::pmr::vector<HMM_Vec3> coords(memory_resource), normals(memory_resource);
-	std::pmr::vector<HMM_Vec2> texCoords(memory_resource);
-	int rh = right_hand ? -1 : 1;
-
-	coords.reserve(attrib.vertices.size() / 3);
-	for (size_t i = 0; i < attrib.vertices.size() / 3; ++i)
-	{
-		coords.push_back({ attrib.vertices[3 * i + 0] * rh, attrib.vertices[3 * i + 1], attrib.vertices[3 * i + 2] });
-	}
-
-	normals.reserve(attrib.normals.size() / 3);
-	for (size_t i = 0; i < attrib.normals.size() / 3; ++i)
-	{
-		normals.push_back({ attrib.normals[3 * i + 0] * rh, attrib.normals[3 * i + 1], attrib.normals[3 * i + 2] });
-	}
-
-	texCoords.reserve(attrib.texcoords.size() / 2);
-	for (size_t i = 0; i < attrib.texcoords.size() / 2; ++i)
-	{
-		texCoords.push_back({ attrib.texcoords[2 * i + 0], 1 - attrib.texcoords[2 * i + 1] });
-	}
-
-	struct TripleIntHasher
-	{
-		size_t operator()(const std::tuple<int, int, int>& t) const {
-			size_t h1 = std::hash<int>{}(get<0>(t));
-			size_t h2 = std::hash<int>{}(get<1>(t));
-			size_t h3 = std::hash<int>{}(get<2>(t));
-			return ((h1 ^ (h2 << 1)) >> 1) ^ h3;
-		}
-	};
-	std::unordered_map<std::tuple<int, int, int>, uint32_t, TripleIntHasher> vertex_map;
-
-	vertices->reserve(coords.size());
-	for (size_t i = 0; i < shapes.size(); ++i)
-	{
-		auto& mesh = shapes[i].mesh;
-		indices->reserve(mesh.indices.size());
-		for (size_t j = 0; j < mesh.indices.size(); ++j)
-		{
-			int vertex_index = mesh.indices[j].vertex_index;
-			int normal_index = mesh.indices[j].normal_index;
-			int texcoord_index = mesh.indices[j].texcoord_index;
-
-			auto vertex_map_index = std::tuple{ vertex_index, normal_index, texcoord_index };
-			auto iter = vertex_map.find(vertex_map_index);
-			if (iter != vertex_map.end())
-			{
-				auto vertex_index = iter->second;
-				indices->push_back(vertex_index);
-			}
-			else
-			{
-				auto pos = coords[vertex_index];
-				auto normal = normal_index >= 0 ? normals[normal_index] : HMM_Vec3();
-				auto texcoord = texcoord_index >= 0 ? texCoords[texcoord_index] : HMM_Vec2();
-				auto iter = vertex_map.insert({ vertex_map_index , vertices->size() });
-				vertices->push_back({ pos, normal, texcoord });
-				indices->push_back(iter.first->second);
-			}
-		}
-
-		break;
-	}
-
-	return { vertices, indices };
-}
-
-HGEGraphics::Mesh* oval_load_mesh(oval_device_t* device, const char8_t* filepath)
-{
-	auto D = (oval_cgpu_device_t*)device;
-	auto [data, indices] = LoadObjModel(filepath, true, D->memory_resource);
-
-	if (!data)
-	{
-		if (indices)
-			delete indices;
-		return nullptr;
-	}
-
-	CGPUVertexLayout mesh_vertex_layout =
-	{
-		.attribute_count = 3,
-		.attributes =
-		{
-			{ u8"POSITION", 1, CGPU_FORMAT_R32G32B32_SFLOAT, 0, 0, sizeof(float) * 3, CGPU_INPUT_RATE_VERTEX },
-			{ u8"NORMAL", 1, CGPU_FORMAT_R32G32B32_SFLOAT, 0, sizeof(float) * 3, sizeof(float) * 3, CGPU_INPUT_RATE_VERTEX },
-			{ u8"TEXCOORD", 1, CGPU_FORMAT_R32G32_SFLOAT, 0, sizeof(float) * 6, sizeof(float) * 2, CGPU_INPUT_RATE_VERTEX },
-		}
-	};
-	auto mesh = HGEGraphics::create_mesh(device->device, data->size(), (indices ? indices->size() : 0), CGPU_PRIM_TOPO_TRI_LIST, mesh_vertex_layout, (indices ? sizeof(uint32_t) : 0), false, false);
-
-	D->wait_upload_mesh.push({ mesh, data, indices, nullptr, nullptr, mesh->vertices_count * mesh->vertex_stride, mesh->index_count * mesh->index_stride });
-
-	return mesh;
-}
-
-HGEGraphics::Mesh* oval_create_mesh_from_buffer(oval_device_t* device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, const uint8_t* vertex_data, const uint8_t* index_data, bool update_vertex_data_from_compute_shader, bool update_index_data_from_compute_shader)
-{
-	auto D = (oval_cgpu_device_t*)device;
-	auto mesh = HGEGraphics::create_mesh(device->device, vertex_count, index_count, prim_topology, vertex_layout, index_stride, update_vertex_data_from_compute_shader, update_index_data_from_compute_shader);
-
-	auto vertex_raw_data = malloc(vertex_count * mesh->vertex_stride);
-	memcpy(vertex_raw_data, vertex_data, vertex_count * mesh->vertex_stride);
-	void* index_raw_data = nullptr;
-	if (index_data)
-	{
-		index_raw_data = malloc(index_count * mesh->index_stride);
-		memcpy(index_raw_data, index_data, index_count * mesh->index_stride);
-	}
-
-	D->wait_upload_mesh.push({ mesh, nullptr, nullptr, vertex_raw_data, index_raw_data, mesh->vertices_count * mesh->vertex_stride, mesh->index_count * mesh->index_stride });
-
-	return mesh;
 }

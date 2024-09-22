@@ -133,10 +133,18 @@ void initNoiseMap(Application& app, uint32_t width, uint32_t height, uint32_t de
 {
 	const uint32_t texMemSize = width * height * depth;
 
-	uint8_t* data = new uint8_t[texMemSize];
-	memset(data, 0, texMemSize);
-
-	auto tStart = std::chrono::high_resolution_clock::now();
+	CGPUTextureDescriptor descriptor =
+	{
+		.width = width,
+		.height = height,
+		.depth = depth,
+		.array_size = 1,
+		.format = CGPU_FORMAT_R8_UNORM,
+		.mip_levels = 1,
+		.descriptors = CGPU_RESOURCE_TYPE_TEXTURE,
+	};
+	app.noisemap = oval_create_texture(app.device, descriptor);
+	uint8_t* data = oval_graphics_set_texture_data_slice(app.device, app.noisemap, 0, 0, nullptr);
 
 	PerlinNoise<float> perlinNoise(true);
 	FractalNoise<float> fractalNoise(perlinNoise);
@@ -158,20 +166,6 @@ void initNoiseMap(Application& app, uint32_t width, uint32_t height, uint32_t de
 			}
 		}
 	}
-
-	CGPUTextureDescriptor descriptor =
-	{
-		.width = width,
-		.height = height,
-		.depth = depth,
-		.array_size = 1,
-		.format = CGPU_FORMAT_R8_UNORM,
-		.mip_levels = 1,
-		.descriptors = CGPU_RESOURCE_TYPE_TEXTURE,
-	};
-	app.noisemap = oval_create_texture_from_buffer(app.device, descriptor, data, texMemSize);
-
-	delete[] data;
 }
 
 void _init_resource(Application& app)
@@ -197,7 +191,7 @@ void _init_resource(Application& app)
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
 
-	app.texture3d = HGEGraphics::create_shader(app.device->device, "texture3d/texture3d.vert.spv", "texture3d/texture3d.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.texture3d = oval_create_shader(app.device, "texture3d/texture3d.vert.spv", "texture3d/texture3d.frag.spv", blend_desc, depth_desc, rasterizer_state);
 
 	CGPUSamplerDescriptor cubemap_sampler_desc = {
 		.min_filter = CGPU_FILTER_TYPE_LINEAR,
@@ -209,7 +203,7 @@ void _init_resource(Application& app)
 		.mip_lod_bias = 0,
 		.max_anisotropy = 1,
 	};
-	app.sampler = cgpu_create_sampler(app.device->device, &cubemap_sampler_desc);
+	app.sampler = oval_create_sampler(app.device, &cubemap_sampler_desc);
 
 	app.quad = oval_load_mesh(app.device, u8"media/models/Quad.obj");
 
@@ -218,16 +212,16 @@ void _init_resource(Application& app)
 
 void _free_resource(Application& app)
 {
-	free_mesh(app.quad);
+	oval_free_mesh(app.device, app.quad);
 	app.quad = nullptr;
 
-	cgpu_free_sampler(app.sampler);
+	oval_free_sampler(app.device, app.sampler);
 	app.sampler = nullptr;
 
-	free_texture(app.noisemap);
+	oval_free_texture(app.device, app.noisemap);
 	app.noisemap = nullptr;
 
-	free_shader(app.texture3d);
+	oval_free_shader(app.device, app.texture3d);
 	app.texture3d = nullptr;
 }
 
@@ -284,10 +278,10 @@ void on_imgui(oval_device_t* device)
 
 	if (ImGui::Button("Capture"))
 		oval_render_debug_capture(device);
-	ImGui::SliderFloat2("Light Dir", &app->lightDirEulerX, -180, 180);
+	ImGui::SliderFloat2("Light Dir", &app->lightDirEulerX, -360, 360);
 }
 
-void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::resource_handle_t rg_back_buffer)
+void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::texture_handle_t rg_back_buffer)
 {
 	using namespace HGEGraphics;
 

@@ -39,6 +39,7 @@ struct Application
 	HGEGraphics::Mesh* quad;
 	HGEGraphics::Mesh* sphere;
 	float lightDirEulerX, lightDirEulerY;
+	float cameraRotateY;
 };
 
 void _init_resource(Application& app)
@@ -63,9 +64,9 @@ void _init_resource(Application& app)
 	CGPURasterizerStateDescriptor rasterizer_state = {
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
-	app.skybox_shader = HGEGraphics::create_shader(app.device->device, "hdr/skybox.vert.spv", "hdr/skybox.frag.spv", blend_desc, depth_desc, rasterizer_state);
-	app.unlit_shader = HGEGraphics::create_shader(app.device->device, "hdr/unlit.vert.spv", "hdr/unlit.frag.spv", blend_desc, depth_desc, rasterizer_state);
-	app.hdr_shader = HGEGraphics::create_shader(app.device->device, "hdr/hdr.vert.spv", "hdr/hdr.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.skybox_shader = oval_create_shader(app.device, "hdr/skybox.vert.spv", "hdr/skybox.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.unlit_shader = oval_create_shader(app.device, "hdr/unlit.vert.spv", "hdr/unlit.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.hdr_shader = oval_create_shader(app.device, "hdr/hdr.vert.spv", "hdr/hdr.frag.spv", blend_desc, depth_desc, rasterizer_state);
 
 	app.cubemap = oval_load_texture(app.device, u8"media/textures/uffizi_cube.ktx", true);
 	app.colormap = oval_load_texture(app.device, u8"media/textures/TilesGray512.ktx", true);
@@ -80,7 +81,7 @@ void _init_resource(Application& app)
 		.mip_lod_bias = 0,
 		.max_anisotropy = 1,
 	};
-	app.cubemap_sampler = cgpu_create_sampler(app.device->device, &cubemap_sampler_desc);
+	app.cubemap_sampler = oval_create_sampler(app.device, &cubemap_sampler_desc);
 
 	app.quad = oval_load_mesh(app.device, u8"media/models/Quad.obj");
 	app.sphere = oval_load_mesh(app.device, u8"media/models/Sphere.obj");
@@ -88,28 +89,28 @@ void _init_resource(Application& app)
 
 void _free_resource(Application& app)
 {
-	free_mesh(app.quad);
+	oval_free_mesh(app.device, app.quad);
 	app.quad = nullptr;
 
-	free_mesh(app.sphere);
+	oval_free_mesh(app.device, app.sphere);
 	app.sphere = nullptr;
 
-	free_texture(app.cubemap);
+	oval_free_texture(app.device, app.cubemap);
 	app.cubemap = nullptr;
 
-	cgpu_free_sampler(app.cubemap_sampler);
+	oval_free_sampler(app.device, app.cubemap_sampler);
 	app.cubemap_sampler = nullptr;
 
-	free_texture(app.colormap);
+	oval_free_texture(app.device, app.colormap);
 	app.colormap = nullptr;
 
-	free_shader(app.skybox_shader);
+	oval_free_shader(app.device, app.skybox_shader);
 	app.skybox_shader = nullptr;
 
-	free_shader(app.unlit_shader);
+	oval_free_shader(app.device, app.unlit_shader);
 	app.unlit_shader = nullptr;
 
-	free_shader(app.hdr_shader);
+	oval_free_shader(app.device, app.hdr_shader);
 	app.hdr_shader = nullptr;
 }
 
@@ -119,6 +120,7 @@ void _init_world(Application& app)
 	app.hdr_data.albedo = HMM_V4(1, 1, 1, 0.5);
 	app.lightDirEulerX = -50;
 	app.lightDirEulerY = 150;
+	app.cameraRotateY = 0;
 }
 
 void on_update(oval_device_t* device)
@@ -128,7 +130,7 @@ void on_update(oval_device_t* device)
 	auto now = clock();
 	auto duration = (double)(now - app->time) / CLOCKS_PER_SEC;
 
-	auto cameraParentMat = HMM_QToM4(HMM_QFromEuler_YXZ(HMM_AngleDeg(0), HMM_AngleDeg(24), 0));
+	auto cameraParentMat = HMM_QToM4(HMM_QFromEuler_YXZ(HMM_AngleDeg(0), HMM_AngleDeg(app->cameraRotateY), 0));
 	auto cameraLocalMat = HMM_Translate(HMM_V3(0, 0, -1));
 
 	auto cameraMat = cameraParentMat * cameraLocalMat;
@@ -169,11 +171,12 @@ void on_imgui(oval_device_t* device)
 
 	if (ImGui::Button("Capture"))
 		oval_render_debug_capture(device);
+	ImGui::SliderFloat("Camera Dir", &app->cameraRotateY, -360, 360);
 	ImGui::SliderFloat("Smoothness", &app->hdr_data.albedo.W, 0, 1);
-	ImGui::SliderFloat2("Light Dir", &app->lightDirEulerX, -180, 180);
+	ImGui::SliderFloat2("Light Dir", &app->lightDirEulerX, -360, 360);
 }
 
-void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::resource_handle_t rg_back_buffer)
+void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::texture_handle_t rg_back_buffer)
 {
 	using namespace HGEGraphics;
 

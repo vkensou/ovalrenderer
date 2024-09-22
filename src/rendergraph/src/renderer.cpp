@@ -131,13 +131,27 @@ namespace HGEGraphics
 
 	void free_buffer(Buffer* buffer)
 	{
-		cgpu_free_buffer(buffer->handle);
+		if (buffer->handle)
+			cgpu_free_buffer(buffer->handle);
 		delete buffer;
 	}
 
-	Mesh* create_mesh(CGPUDeviceId device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, bool update_vertex_data_from_compute_shader, bool update_index_data_from_compute_shader)
+	Mesh* create_empty_mesh()
 	{
 		auto mesh = new Mesh();
+		mesh->vertex_layout = {};
+		mesh->prim_topology = CGPU_PRIM_TOPO_POINT_LIST;
+		mesh->vertices_count = 0;
+		mesh->index_count = 0;
+		mesh->index_stride = 0;
+		mesh->vertex_buffer = nullptr;
+		mesh->index_buffer = nullptr;
+		mesh->prepared = false;
+		return mesh;
+	}
+
+	void init_mesh(Mesh* mesh, CGPUDeviceId device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, bool update_vertex_data_from_compute_shader, bool update_index_data_from_compute_shader)
+	{
 		mesh->vertex_layout = vertex_layout;
 		mesh->prim_topology = prim_topology;
 		mesh->vertices_count = vertex_count;
@@ -167,6 +181,12 @@ namespace HGEGraphics
 			mesh->index_buffer = create_buffer(device, index_buffer_desc);
 		}
 		mesh->prepared = false;
+	}
+
+	Mesh* create_mesh(CGPUDeviceId device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, bool update_vertex_data_from_compute_shader, bool update_index_data_from_compute_shader)
+	{
+		auto mesh = create_empty_mesh();
+		init_mesh(mesh, device, vertex_count, index_count, prim_topology, vertex_layout, index_stride, update_vertex_data_from_compute_shader, update_index_data_from_compute_shader);
 		return mesh;
 	}
 
@@ -182,40 +202,40 @@ namespace HGEGraphics
 			mesh->vertex_stride += vertex_layout.attributes[i].elem_stride;
 		}
 		mesh->index_stride = index_stride;
-		mesh->vertex_buffer = CGPU_NULLPTR;
-		mesh->index_buffer = CGPU_NULLPTR;
+		mesh->vertex_buffer = new Buffer();
+		mesh->index_buffer = new Buffer();
 		mesh->prepared = true;
 		return mesh;
 	}
 
 	buffer_handle_t declare_dynamic_vertex_buffer(Mesh* mesh, rendergraph_t* rg, uint32_t count)
 	{
-		auto dynamic_vertex_buffer = rendergraph_declare_buffer(rg);
+		auto dynamic_vertex_buffer = rendergraph_import_dynamic_buffer(rg, mesh->vertex_buffer);
 		rg_buffer_set_size(rg, dynamic_vertex_buffer, count * mesh->vertex_stride);
 		rg_buffer_set_type(rg, dynamic_vertex_buffer, CGPU_RESOURCE_TYPE_VERTEX_BUFFER);
 		rg_buffer_set_usage(rg, dynamic_vertex_buffer, CGPU_MEM_USAGE_GPU_ONLY);
-		mesh->dynamic_vertex_buffer_handle = dynamic_vertex_buffer;
+		mesh->vertex_buffer->dynamic_handle = dynamic_vertex_buffer;
 		mesh->vertices_count = count;
-		return mesh->dynamic_vertex_buffer_handle;
+		return mesh->vertex_buffer->dynamic_handle;
 	}
 
 	buffer_handle_t declare_dynamic_index_buffer(Mesh* mesh, rendergraph_t* rg, uint32_t count)
 	{
-		auto dynamic_index_buffer = rendergraph_declare_buffer(rg);
+		auto dynamic_index_buffer = rendergraph_import_dynamic_buffer(rg, mesh->index_buffer);
 		rg_buffer_set_size(rg, dynamic_index_buffer, count * mesh->index_stride);
 		rg_buffer_set_type(rg, dynamic_index_buffer, CGPU_RESOURCE_TYPE_INDEX_BUFFER);
 		rg_buffer_set_usage(rg, dynamic_index_buffer, CGPU_MEM_USAGE_GPU_ONLY);
-		mesh->dynamic_index_buffer_handle = dynamic_index_buffer;
+		mesh->index_buffer->dynamic_handle = dynamic_index_buffer;
 		mesh->index_count = count;
-		return mesh->dynamic_index_buffer_handle;
+		return mesh->index_buffer->dynamic_handle;
 	}
 
 	void dynamic_mesh_reset(Mesh* mesh)
 	{
 		mesh->vertices_count = 0;
 		mesh->index_count = 0;
-		mesh->dynamic_vertex_buffer_handle = {};
-		mesh->dynamic_index_buffer_handle = {};
+		mesh->vertex_buffer->dynamic_handle = {};
+		mesh->index_buffer->dynamic_handle = {};
 	}
 
 	void free_mesh(Mesh* mesh)
@@ -227,10 +247,19 @@ namespace HGEGraphics
 		delete mesh;
 	}
 
-	Texture* create_texture(CGPUDeviceId device, const CGPUTextureDescriptor& desc)
+	Texture* create_empty_texture()
 	{
 		auto texture = new Texture();
+		texture->handle = CGPU_NULLPTR;
+		texture->view = CGPU_NULLPTR;
+		texture->cur_states.clear();
+		texture->states_consistent = false;
+		texture->prepared = false;
+		return texture;
+	}
 
+	void init_texture(Texture* texture, CGPUDeviceId device, const CGPUTextureDescriptor& desc)
+	{
 		CGPUTextureDescriptor new_desc = desc;
 		if (desc.depth == 1 && desc.height == 1)
 			new_desc.flags |= CGPU_TCF_FORCE_2D;
@@ -258,14 +287,21 @@ namespace HGEGraphics
 		view_desc.mip_level_count = texture->handle->info->mip_levels;
 		texture->view = cgpu_create_texture_view(device, &view_desc);
 		texture->prepared = false;
+	}
 
+	Texture* create_texture(CGPUDeviceId device, const CGPUTextureDescriptor& desc)
+	{
+		auto texture = create_empty_texture();
+		init_texture(texture, device, desc);
 		return texture;
 	}
 
 	void free_texture(Texture* texture)
 	{
-		cgpu_free_texture_view(texture->view);
-		cgpu_free_texture(texture->handle);
+		if (texture->view)
+			cgpu_free_texture_view(texture->view);
+		if (texture->handle)
+			cgpu_free_texture(texture->handle);
 		delete texture;
 	}
 
@@ -343,38 +379,42 @@ namespace HGEGraphics
 				};
 				if (res.type == CGPU_RESOURCE_TYPE_TEXTURE)
 				{
+					CGPUTextureViewId textureview = CGPU_NULLPTR;
 					for (auto iter = encoder->context->global_texture_table.rbegin(); iter != encoder->context->global_texture_table.rend(); ++iter)
 					{
 						auto& binder = *iter;
 						if (binder.set == i && binder.bind == res.binding)
 						{
-							CGPUTextureViewId textureview = CGPU_NULLPTR;
-							if (binder.texture_handle.index().has_value())
-								textureview = rendergraph_resolve_texture_view(encoder, binder.texture_handle.index().value());
+							if (rendergraph_texture_handle_valid(binder.texture_handle))
+								textureview = rendergraph_resolve_texture_view(encoder, binder.texture_handle);
 							else if (binder.texture && binder.texture->prepared)
 								textureview = binder.texture->view;
-							if (!textureview)
-								textureview = encoder->context->default_texture;
-							encoder->textureviews[texture_view_count] = textureview;
-							data.textures = encoder->textureviews + texture_view_count;
-							++texture_view_count;
 							break;
 						}
 					}
+					if (!textureview)
+						textureview = encoder->context->default_texture;
+					encoder->textureviews[texture_view_count] = textureview;
+					data.textures = encoder->textureviews + texture_view_count;
+					++texture_view_count;
 				}
 				else if (res.type == CGPU_RESOURCE_TYPE_SAMPLER)
 				{
+					CGPUSamplerId sampler = CGPU_NULLPTR;
 					for (auto iter = encoder->context->global_sampler_table.rbegin(); iter != encoder->context->global_sampler_table.rend(); ++iter)
 					{
 						auto& binder = *iter;
 						if (binder.set == i && binder.bind == res.binding)
 						{
-							encoder->samplers[sampler_count] = binder.sampler;
-							data.samplers = encoder->samplers + sampler_count;
-							++sampler_count;
+							sampler = binder.sampler;
 							break;
 						}
 					}
+					if (!sampler)
+						;	// TODO
+					encoder->samplers[sampler_count] = sampler;
+					data.samplers = encoder->samplers + sampler_count;
+					++sampler_count;
 				}
 				else if (res.type == CGPU_RESOURCE_TYPE_UNIFORM_BUFFER || res.type == CGPU_RESOURCE_TYPE_RW_BUFFER)
 				{
@@ -383,7 +423,7 @@ namespace HGEGraphics
 						auto& binder = *iter;
 						if (binder.set == i && binder.bind == res.binding)
 						{
-							encoder->buffers[buffer_count] = rendergraph_resolve_buffer(encoder, binder.buffer.index().value());
+							encoder->buffers[buffer_count] = rendergraph_resolve_buffer(encoder, binder.buffer);
 							if (binder.offset != 0 || binder.size != 0)
 							{
 								encoder->buffer_offset_sizes[offset_size_count] = binder.offset;
@@ -422,10 +462,10 @@ namespace HGEGraphics
 	void update_mesh(RenderPassEncoder* encoder, Mesh* mesh)
 	{
 		CGPUBufferId vertex_buffer = CGPU_NULLPTR;
-		if (mesh->dynamic_vertex_buffer_handle.valid())
+		if (rendergraph_buffer_handle_valid(mesh->vertex_buffer->dynamic_handle))
 		{
-			auto vertex_buffer_handle = mesh->dynamic_vertex_buffer_handle;
-			vertex_buffer = rendergraph_resolve_buffer(encoder, vertex_buffer_handle.index().value());
+			auto vertex_buffer_handle = mesh->vertex_buffer->dynamic_handle;
+			vertex_buffer = rendergraph_resolve_buffer(encoder, vertex_buffer_handle);
 		}
 		else if (mesh->vertex_buffer)
 		{
@@ -441,14 +481,17 @@ namespace HGEGraphics
 		}
 
 		CGPUBufferId index_buffer = CGPU_NULLPTR;
-		if (mesh->dynamic_index_buffer_handle.valid())
+		if (mesh->index_buffer)
 		{
-			auto index_buffer_handle = mesh->dynamic_index_buffer_handle;
-			index_buffer = rendergraph_resolve_buffer(encoder, index_buffer_handle.index().value());
-		}
-		else if (mesh->index_buffer)
-		{
-			index_buffer = mesh->index_buffer->handle;
+			if (rendergraph_buffer_handle_valid(mesh->index_buffer->dynamic_handle))
+			{
+				auto index_buffer_handle = mesh->index_buffer->dynamic_handle;
+				index_buffer = rendergraph_resolve_buffer(encoder, index_buffer_handle);
+			}
+			else
+			{
+				index_buffer = mesh->index_buffer->handle;
+			}
 		}
 		const uint32_t index_stride = mesh->index_stride;
 		if (encoder->last_index_buffer != index_buffer || encoder->last_index_buffer_stride != index_stride)
@@ -517,7 +560,7 @@ namespace HGEGraphics
 		encoder->context->global_texture_table.push_back({ texture, {}, set, slot });
 	}
 
-	void set_global_texture_handle(RenderPassEncoder* encoder, resource_handle_t texture, int set, int slot)
+	void set_global_texture_handle(RenderPassEncoder* encoder, texture_handle_t texture, int set, int slot)
 	{
 		encoder->context->global_texture_table.push_back({ nullptr, texture, set, slot });
 	}

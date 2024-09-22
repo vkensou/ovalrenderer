@@ -65,8 +65,8 @@ void _init_resource(Application& app)
 	CGPURasterizerStateDescriptor rasterizer_state = {
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
-	app.particle = HGEGraphics::create_shader(app.device->device, "computeparticle/particle.vert.spv", "computeparticle/particle.frag.spv", blend_desc, depth_desc, rasterizer_state);
-	app.particle_updater = HGEGraphics::create_compute_shader(app.device->device, "computeparticle/particle_update.comp.spv");
+	app.particle = oval_create_shader(app.device, "computeparticle/particle.vert.spv", "computeparticle/particle.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.particle_updater = oval_create_compute_shader(app.device, "computeparticle/particle_update.comp.spv");
 
 	app.colormap = oval_load_texture(app.device, u8"media/textures/particle01_rgba.ktx", false);
 	app.gradientmap = oval_load_texture(app.device, u8"media/textures/particle_gradient_rgba.ktx", false);
@@ -81,7 +81,7 @@ void _init_resource(Application& app)
 		.mip_lod_bias = 0,
 		.max_anisotropy = 1,
 	};
-	app.sampler = cgpu_create_sampler(app.device->device, &cubemap_sampler_desc);
+	app.sampler = oval_create_sampler(app.device, &cubemap_sampler_desc);
 
 	app.quad = oval_load_mesh(app.device, u8"media/models/Quad.obj");
 
@@ -110,25 +110,25 @@ void _init_resource(Application& app)
 
 void _free_resource(Application& app)
 {
-	free_texture(app.colormap);
+	oval_free_texture(app.device, app.colormap);
 	app.colormap = nullptr;
 
-	free_texture(app.gradientmap);
+	oval_free_texture(app.device, app.gradientmap);
 	app.gradientmap = nullptr;
 
-	free_mesh(app.quad);
+	oval_free_mesh(app.device, app.quad);
 	app.quad = nullptr;
 
-	cgpu_free_sampler(app.sampler);
+	oval_free_sampler(app.device, app.sampler);
 	app.sampler = nullptr;
 
-	free_mesh(app.particle_mesh);
+	oval_free_mesh(app.device, app.particle_mesh);
 	app.particle_mesh = nullptr;
 
-	free_shader(app.particle);
+	oval_free_shader(app.device, app.particle);
 	app.particle = nullptr;
 
-	free_compute_shader(app.particle_updater);
+	oval_free_compute_shader(app.device, app.particle_updater);
 	app.particle_updater = nullptr;
 }
 
@@ -190,17 +190,16 @@ void on_imgui(oval_device_t* device)
 		oval_render_debug_capture(device);
 }
 
-void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::resource_handle_t rg_back_buffer)
+void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::texture_handle_t rg_back_buffer)
 {
 	using namespace HGEGraphics;
 
 	Application* app = (Application*)device->descriptor.userdata;
 
-	buffer_handle_t particle_vertex_buffer_handle;
-	if (app->particle_mesh->prepared)
+	buffer_handle_t particle_vertex_buffer_handle = {};
+	if (oval_mesh_prepared(app->device, app->particle_mesh))
 	{
-		particle_vertex_buffer_handle = rendergraph_declare_buffer(&rg);
-		rg_buffer_import(&rg, particle_vertex_buffer_handle, app->particle_mesh->vertex_buffer);
+		particle_vertex_buffer_handle = rendergraph_import_buffer(&rg, oval_mesh_get_vertex_buffer(app->device, app->particle_mesh));
 
 		auto particl_update_ubo_handle = rendergraph_declare_uniform_buffer_quick(&rg, sizeof(ParticleUpdateData), &app->particle_update_data);
 
@@ -230,7 +229,7 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 	auto passBuilder = rendergraph_add_renderpass(&rg, u8"Main Pass");
 	uint32_t color = 0xff000000;
 	renderpass_add_color_attachment(&passBuilder, rg_back_buffer, ECGPULoadAction::CGPU_LOAD_ACTION_CLEAR, color, ECGPUStoreAction::CGPU_STORE_ACTION_STORE);
-	if (particle_vertex_buffer_handle.valid())
+	if (rendergraph_buffer_handle_valid(particle_vertex_buffer_handle))
 		renderpass_use_buffer_as(&passBuilder, particle_vertex_buffer_handle, CGPU_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER);
 
 	struct MainPassPassData

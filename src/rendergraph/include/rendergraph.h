@@ -7,10 +7,15 @@
 #include <optional>
 #include "texturepool.h"
 #include <functional>
-#include "renderer.h"
+#include "resource_type.h"
 
 namespace HGEGraphics
 {
+	struct Shader;
+	struct Backbuffer;
+	struct Buffer;
+	struct Texture;
+
 	enum class ResourceType
 	{
 		Texture,
@@ -34,7 +39,7 @@ namespace HGEGraphics
 	struct alignas(8) ColorAttachmentInfo
 	{
 		unsigned int clearColor = 0;
-		int resourceIndex = 0;
+		uint32_t resourceIndex = 0;
 		ECGPULoadAction load_action = CGPU_LOAD_ACTION_DONTCARE;
 		ECGPUStoreAction store_action = CGPU_STORE_ACTION_DISCARD;
 		bool valid = false;
@@ -44,7 +49,7 @@ namespace HGEGraphics
 	{
 		float clearDepth = 0;
 		uint8_t clearStencil = 0;
-		int resourceIndex = 0;
+		uint32_t resourceIndex = 0;
 		ECGPULoadAction depth_load_action = CGPU_LOAD_ACTION_DONTCARE;
 		ECGPUStoreAction depth_store_action = CGPU_STORE_ACTION_DISCARD;
 		ECGPULoadAction stencil_load_action = CGPU_LOAD_ACTION_DONTCARE;
@@ -82,7 +87,7 @@ namespace HGEGraphics
 		uint8_t mipCount;;
 		uint8_t arraySize;
 		uint32_t size;
-		uint16_t parent;
+		index_type_t parent;
 		uint8_t mipLevel;
 		uint8_t arraySlice;
 		CGPUResourceTypes bufferType;
@@ -92,8 +97,8 @@ namespace HGEGraphics
 
 	struct RenderGraphEdge
 	{
-		const uint16_t from;
-		const uint16_t to;
+		const index_type_t from;
+		const index_type_t to;
 		const ECGPUResourceState usage;
 	};
 
@@ -142,7 +147,7 @@ namespace HGEGraphics
 		struct upload_texture_context_t
 		{
 			buffer_handle_t staging_buffer;
-			resource_handle_t dest_texture;
+			texture_handle_t dest_texture;
 			uploadpass_executable executable;
 			uint64_t size;
 			uint64_t offset;
@@ -179,34 +184,33 @@ namespace HGEGraphics
 
 		rendergraph_t* renderGraph;
 		RenderPassNode* passNode;
-		uint16_t passIndex;
+		index_type_t passIndex;
 	};
 
-	void renderpass_add_color_attachment(renderpass_builder_t* self, resource_handle_t texture, ECGPULoadAction load_action, uint32_t clearColor, ECGPUStoreAction store_action);
-	void renderpass_add_depth_attachment(renderpass_builder_t* self, resource_handle_t texture, ECGPULoadAction depth_load_action, float clearDepth, ECGPUStoreAction depth_store_action, ECGPULoadAction stencil_load_action, uint8_t clearStencil, ECGPUStoreAction stencil_store_action);
-	void renderpass_sample(renderpass_builder_t* self, resource_handle_t texture);
+	void renderpass_add_color_attachment(renderpass_builder_t* self, texture_handle_t texture, ECGPULoadAction load_action, uint32_t clearColor, ECGPUStoreAction store_action);
+	void renderpass_add_depth_attachment(renderpass_builder_t* self, texture_handle_t texture, ECGPULoadAction depth_load_action, float clearDepth, ECGPUStoreAction depth_store_action, ECGPULoadAction stencil_load_action, uint8_t clearStencil, ECGPUStoreAction stencil_store_action);
+	void renderpass_sample(renderpass_builder_t* self, texture_handle_t texture);
 	void renderpass_use_buffer(renderpass_builder_t* self, buffer_handle_t buffer);
 	void renderpass_use_buffer_as(renderpass_builder_t* self, buffer_handle_t buffer, ECGPUResourceState state);
 	void renderpass_set_executable(renderpass_builder_t* self, renderpass_executable executable, size_t passdata_size, void** passdata);
-	void computepass_sample(renderpass_builder_t* self, resource_handle_t texture);
+	void computepass_sample(renderpass_builder_t* self, texture_handle_t texture);
 	void computepass_use_buffer(renderpass_builder_t* self, buffer_handle_t buffer);
 	void computepass_use_buffer_as(renderpass_builder_t* self, buffer_handle_t buffer, ECGPUResourceState state);
-	void computepass_readwrite_texture(renderpass_builder_t* self, resource_handle_t texture);
+	void computepass_readwrite_texture(renderpass_builder_t* self, texture_handle_t texture);
 	void computepass_readwrite_buffer(renderpass_builder_t* self, buffer_handle_t buffer);
 	void computepass_set_executable(renderpass_builder_t* self, renderpass_executable executable, size_t passdata_size, void** passdata);
 
-	void rg_texture_set_extent(rendergraph_t* self, resource_handle_t texture, uint32_t width, uint32_t height, uint32_t depth = 1);
-	void rg_texture_set_format(rendergraph_t* self, resource_handle_t texture, ECGPUFormat format);
-	void rg_texture_set_depth_format(rendergraph_t* self, resource_handle_t texture, DepthBits depthBits, bool needStencil);
-	uint32_t rg_texture_get_width(rendergraph_t* self, resource_handle_t texture);
-	uint32_t rg_texture_get_height(rendergraph_t* self, resource_handle_t texture);
-	uint32_t rg_texture_get_depth(rendergraph_t* self, resource_handle_t texture);
-	ECGPUFormat rg_texture_get_format(rendergraph_t* self, resource_handle_t texture);
+	void rg_texture_set_extent(rendergraph_t* self, texture_handle_t texture, uint32_t width, uint32_t height, uint32_t depth = 1);
+	void rg_texture_set_format(rendergraph_t* self, texture_handle_t texture, ECGPUFormat format);
+	void rg_texture_set_depth_format(rendergraph_t* self, texture_handle_t texture, DepthBits depthBits, bool needStencil);
+	uint32_t rg_texture_get_width(rendergraph_t* self, texture_handle_t texture);
+	uint32_t rg_texture_get_height(rendergraph_t* self, texture_handle_t texture);
+	uint32_t rg_texture_get_depth(rendergraph_t* self, texture_handle_t texture);
+	ECGPUFormat rg_texture_get_format(rendergraph_t* self, texture_handle_t texture);
 
 	void rg_buffer_set_size(rendergraph_t* self, buffer_handle_t buffer, uint32_t size);
 	void rg_buffer_set_type(rendergraph_t* self, buffer_handle_t buffer, ECGPUResourceType type);
 	void rg_buffer_set_usage(rendergraph_t* self, buffer_handle_t buffer, ECGPUMemoryUsage usage);
-	void rg_buffer_import(rendergraph_t* self, buffer_handle_t buffer, Buffer* imported);
 	void rg_buffer_set_hold_on_last(rendergraph_t* self, buffer_handle_t buffer);
 
 	struct rendergraph_t
@@ -220,26 +224,38 @@ namespace HGEGraphics
 		allocator_type allocator;
 		Shader* blitShader;
 		CGPUSamplerId blitSampler;
+		std::pmr::vector<Texture*> imported_textures;
+		std::pmr::vector<Buffer*> imported_buffers;
 	};
 
 	void rendergraph_reset(rendergraph_t* self);
+	inline bool rendergraph_texture_handle_valid(texture_handle_t handle)
+	{
+		return handle.index != 0;
+	}
+	inline bool rendergraph_buffer_handle_valid(buffer_handle_t handle)
+	{
+		return handle.index != 0;
+	}
 	renderpass_builder_t rendergraph_add_renderpass(rendergraph_t* self, const char8_t* name);
 	renderpass_builder_t rendergraph_add_computepass(rendergraph_t* self, const char8_t* name);
 	renderpass_builder_t rendergraph_add_holdpass(rendergraph_t* self, const char8_t* name);
-	void rendergraph_add_uploadtexturepass(rendergraph_t* self, const char8_t* name, resource_handle_t texture, uint8_t mipmap, uint8_t slice, uploadpass_executable executable, size_t passdata_size, void** passdata);
-	void rendergraph_add_uploadtexturepass_ex(rendergraph_t* self, const char8_t* name, resource_handle_t texture, uint8_t mipmap, uint8_t slice, uint64_t size, uint64_t offset, void* data, uploadpass_executable executable, size_t passdata_size, void** passdata);
+	void rendergraph_add_uploadtexturepass(rendergraph_t* self, const char8_t* name, texture_handle_t texture, uint8_t mipmap, uint8_t slice, uploadpass_executable executable, size_t passdata_size, void** passdata);
+	void rendergraph_add_uploadtexturepass_ex(rendergraph_t* self, const char8_t* name, texture_handle_t texture, uint8_t mipmap, uint8_t slice, uint64_t size, uint64_t offset, void* data, uploadpass_executable executable, size_t passdata_size, void** passdata);
 	void rendergraph_add_uploadbufferpass(rendergraph_t* self, const char8_t* name, buffer_handle_t buffer, uploadpass_executable executable, size_t passdata_size, void** passdata);
 	void rendergraph_add_uploadbufferpass_ex(rendergraph_t* self, const char8_t* name, buffer_handle_t buffer, uint64_t size, uint64_t offset, void* data, uploadpass_executable executable, size_t passdata_size, void** passdata);
-	void rendergraph_add_generate_mipmap(rendergraph_t* self, resource_handle_t texture);
-	void rendergraph_present(rendergraph_t* self, resource_handle_t texture);
-	resource_handle_t rendergraph_declare_texture(rendergraph_t* self);
-	resource_handle_t rendergraph_import_texture(rendergraph_t* self, Texture* imported);
-	resource_handle_t rendergraph_import_backbuffer(rendergraph_t* self, Backbuffer* imported);
+	void rendergraph_add_generate_mipmap(rendergraph_t* self, texture_handle_t texture, uint8_t from_mipmap);
+	void rendergraph_present(rendergraph_t* self, texture_handle_t texture);
+	texture_handle_t rendergraph_declare_texture(rendergraph_t* self);
+	texture_handle_t rendergraph_import_texture(rendergraph_t* self, Texture* imported);
+	texture_handle_t rendergraph_import_backbuffer(rendergraph_t* self, Backbuffer* imported);
 	buffer_handle_t rendergraph_declare_buffer(rendergraph_t* self);
+	buffer_handle_t rendergraph_import_buffer(rendergraph_t* self, Buffer* imported);
+	buffer_handle_t rendergraph_import_dynamic_buffer(rendergraph_t* self, Buffer* imported);
 	buffer_handle_t rendergraph_declare_uniform_buffer_quick(rendergraph_t* self, uint32_t size, void* data);
-	resource_handle_t rendergraph_declare_texture_subresource(rendergraph_t* self, resource_handle_t parent, uint8_t mipmap, uint8_t slice);
-	uint32_t rendergraph_add_edge(rendergraph_t* self, uint32_t from, uint32_t to, ECGPUResourceState usage);
+	texture_handle_t rendergraph_declare_texture_subresource(rendergraph_t* self, texture_handle_t parent, uint8_t mipmap, uint8_t slice);
+	uint32_t rendergraph_add_edge(rendergraph_t* self, index_type_t from, index_type_t to, ECGPUResourceState usage);
 
-	CGPUBufferId rendergraph_resolve_buffer(RenderPassEncoder* encoder, uint16_t buffer_handle);
-	CGPUTextureViewId rendergraph_resolve_texture_view(RenderPassEncoder* encoder, uint16_t texture_handle);
+	CGPUBufferId rendergraph_resolve_buffer(RenderPassEncoder* encoder, buffer_handle_t buffer_handle);
+	CGPUTextureViewId rendergraph_resolve_texture_view(RenderPassEncoder* encoder, texture_handle_t texture_handle);
 }

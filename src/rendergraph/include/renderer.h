@@ -15,6 +15,7 @@
 #include "descriptorsetpool.h"
 #include <optional>
 #include "profiler.h"
+#include "resource_type.h"
 
 namespace HGEGraphics
 {
@@ -44,37 +45,12 @@ namespace HGEGraphics
 	ComputeShader* create_compute_shader(CGPUDeviceId device, const uint8_t* comp_data, uint32_t comp_length);
 	void free_compute_shader(ComputeShader* shader);
 
-	class resource_handle_t
-	{
-	public:
-		resource_handle_t() :m_index(std::nullopt) {}
-		resource_handle_t(uint16_t index) : m_index(index) {}
-		std::optional<uint16_t> index() const { return m_index; }
-
-	private:
-		friend struct recorder_i;
-
-	private:
-		std::optional<uint16_t> m_index;
-	};
-
-	class buffer_handle_t
-	{
-	public:
-		buffer_handle_t() :m_index(std::nullopt) {}
-		buffer_handle_t(uint16_t index) : m_index(index) {}
-		std::optional<uint16_t> index() const { return m_index; }
-		bool valid() { return m_index.has_value(); }
-
-	private:
-		std::optional<uint16_t> m_index;
-	};
-
 	struct Buffer
 	{
 		CGPUBufferId handle;
 		ECGPUResourceType type;
 		ECGPUResourceState cur_state;
+		buffer_handle_t dynamic_handle;
 	};
 
 	Buffer* create_buffer(CGPUDeviceId device, const CGPUBufferDescriptor& desc);
@@ -88,13 +64,13 @@ namespace HGEGraphics
 		uint32_t index_stride;
 		uint32_t vertices_count;
 		uint32_t index_count;
-		buffer_handle_t dynamic_vertex_buffer_handle;
-		buffer_handle_t dynamic_index_buffer_handle;
 		Buffer* vertex_buffer;
 		Buffer* index_buffer;
 		bool prepared;
 	};
 
+	Mesh* create_empty_mesh();
+	void init_mesh(Mesh* mesh, CGPUDeviceId device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, bool update_vertex_data_from_compute_shader, bool update_index_data_from_compute_shader);
 	Mesh* create_mesh(CGPUDeviceId device, uint32_t vertex_count, uint32_t index_count, ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride, bool update_vertex_data_from_compute_shader, bool update_index_data_from_compute_shader);
 	Mesh* create_dynamic_mesh(ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride);
 	buffer_handle_t declare_dynamic_vertex_buffer(Mesh* mesh, rendergraph_t* rg, uint32_t count);
@@ -109,8 +85,11 @@ namespace HGEGraphics
 		std::vector<ECGPUResourceState> cur_states;
 		bool states_consistent;
 		bool prepared;
+		texture_handle_t dynamic_handle;
 	};
 
+	Texture* create_empty_texture();
+	void init_texture(Texture* texture, CGPUDeviceId device, const CGPUTextureDescriptor& desc);
 	Texture* create_texture(CGPUDeviceId device, const CGPUTextureDescriptor& desc);
 	void free_texture(Texture* texture);
 
@@ -127,7 +106,7 @@ namespace HGEGraphics
 	struct ShaderTextureBinder
 	{
 		Texture* texture;
-		resource_handle_t texture_handle;
+		texture_handle_t texture_handle;
 		int set, bind;
 	};
 
@@ -204,21 +183,9 @@ namespace HGEGraphics
 		uint32_t last_index_buffer_stride;
 	};
 
-	void push_constants(RenderPassEncoder* encoder, Shader* shader, const char8_t* name, const void* data);
-	void draw(RenderPassEncoder* encoder, Shader* shader, Mesh* mesh);
-	void draw_submesh(RenderPassEncoder* encoder, Shader* shader, Mesh* mesh, uint32_t index_count, uint32_t first_index, uint32_t vertex_count, uint32_t first_vertex);
-	void draw_procedure(RenderPassEncoder* encoder, Shader* shader, ECGPUPrimitiveTopology mesh_topology, uint32_t vertex_count);
-	void dispatch(RenderPassEncoder* encoder, ComputeShader* shader, uint32_t thread_x, uint32_t thread_y, uint32_t thread_z);
-	void set_global_texture(RenderPassEncoder* encoder, Texture* texture, int set, int slot);
-	void set_global_texture_handle(RenderPassEncoder* encoder, resource_handle_t texture, int set, int slot);
-	void set_global_sampler(RenderPassEncoder* encoder, CGPUSamplerId sampler, int set, int slot);
-	void set_global_buffer(RenderPassEncoder* encoder, buffer_handle_t buffer, int set, int slot);
-	void set_global_buffer_with_offset_size(RenderPassEncoder* encoder, buffer_handle_t buffer, int set, int slot, uint64_t offset, uint64_t size);
-
 	struct UploadEncoder
 	{
 		uint64_t size;
 		void* address;
 	};
-	void upload(UploadEncoder* encoder, uint64_t offset, uint64_t length, void* data);
 }

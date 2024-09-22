@@ -5,12 +5,13 @@
 namespace HGEGraphics
 {
 	class TextureWrap;
-	class Buffer;
+	class BufferWrap;
 
 	struct CompiledResourceNode
 	{
-		CompiledResourceNode(const char8_t* name, ManageType type, uint16_t width, uint16_t height, uint16_t depth, ECGPUFormat format, Texture* texture, uint8_t mipCount, uint8_t arraySize, uint16_t parent, uint8_t mipLevel, uint8_t arraySlice);
+		CompiledResourceNode(const char8_t* name, ManageType type, uint16_t width, uint16_t height, uint16_t depth, ECGPUFormat format, Texture* texture, uint8_t mipCount, uint8_t arraySize, index_type_t parent, uint8_t mipLevel, uint8_t arraySlice);
 		CompiledResourceNode(const char8_t* name, ManageType type, uint32_t size, Buffer* imported_buffer, CGPUResourceTypes bufferType, ECGPUMemoryUsage memoryUsage);
+		CompiledResourceNode();
 
 		const char8_t* name;
 		const ResourceType resourceType;
@@ -28,27 +29,28 @@ namespace HGEGraphics
 		const ECGPUMemoryUsage memoryUsage;
 		uint8_t mipCount;;
 		uint8_t arraySize;
-		uint16_t parent;
+		index_type_t parent;
 		uint8_t mipLevel;
 		uint8_t arraySlice;
 	};
 
 	struct CompiledEdge
 	{
-		uint16_t index;
+		index_type_t index;
 		ECGPUResourceState usage;
 	};
 
 	struct CompiledRenderPassNode
 	{
 		CompiledRenderPassNode(const char8_t* name, std::pmr::memory_resource* const memory_resource);
+		CompiledRenderPassNode();
 
 		const char8_t* name{ nullptr };
 		pass_type type;
 		std::pmr::vector<CompiledEdge> writes;
 		std::pmr::vector<CompiledEdge> reads;
-		std::pmr::vector<uint16_t> devirtualize;
-		std::pmr::vector<uint16_t> destroy;
+		std::pmr::vector<index_type_t> devirtualize;
+		std::pmr::vector<index_type_t> destroy;
 		void* passdata;
 		int colorAttachmentCount{ 0 };
 		std::array<ColorAttachmentInfo, 8> colorAttachments;

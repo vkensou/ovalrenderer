@@ -17,7 +17,7 @@ namespace HGEGraphics
 		
 		struct Node
 		{
-			Node(uint16_t index, bool is_pass, bool is_persistent, std::pmr::memory_resource* const resource)
+			Node(index_type_t index, bool is_pass, bool is_persistent, std::pmr::memory_resource* const resource)
 				: index(index), is_pass(is_pass), is_persistent(is_persistent), ins(resource), outs(resource)
 			{
 			}
@@ -27,45 +27,45 @@ namespace HGEGraphics
 				return ref_count == 0 && !is_persistent;
 			}
 
-			std::pmr::vector<uint16_t> ins;
-			std::pmr::vector<uint16_t> outs;
-			uint16_t index = 0;
-			uint16_t ref_count = 0;
+			std::pmr::vector<index_type_t> ins;
+			std::pmr::vector<index_type_t> outs;
+			index_type_t index = 0;
+			uint32_t ref_count = 0;
 			bool is_pass;
 			bool is_persistent{ false };
 		};
 
 		std::pmr::vector<Node> nodes(memory_resource);
 		nodes.reserve(passCount + resourceCount);
-		for (uint16_t i = 0; i < passCount; ++i)
+		for (index_type_t i = 0; i < passCount; ++i)
 		{
 			auto const& pass = renderGraph.passes[i];
 			Node node(i, true, pass.type == PASS_TYPE_PRESENT || pass.type == PASS_TYPE_HOLDON, memory_resource);
 			node.ins.reserve(pass.reads.size());
-			for (uint16_t j = 0; j < pass.reads.size(); ++j)
+			for (index_type_t j = 0; j < pass.reads.size(); ++j)
 				node.ins.push_back(renderGraph.edges[pass.reads[j]].from + passCount);
 			node.outs.reserve(pass.writes.size());
-			for (uint16_t j = 0; j < pass.writes.size(); ++j)
+			for (index_type_t j = 0; j < pass.writes.size(); ++j)
 				node.outs.push_back(renderGraph.edges[pass.writes[j]].to + passCount);
 			nodes.emplace_back(std::move(node));
 		}
 
-		for (uint16_t i = 0; i < resourceCount; ++i)
+		for (index_type_t i = 0; i < resourceCount; ++i)
 		{
 			auto const& resource = renderGraph.resources[i];
 			Node node(i, false, resource.manageType != ManageType::Managed, memory_resource);
 			nodes.emplace_back(std::move(node));
 		}
 
-		for (uint16_t i = 0; i < passCount; ++i)
+		for (index_type_t i = 0; i < passCount; ++i)
 		{
 			auto const& node = nodes[i];
-			for (uint16_t j = 0; j < node.ins.size(); ++j)
+			for (index_type_t j = 0; j < node.ins.size(); ++j)
 			{
 				auto the_in = node.ins[j];
 				nodes[the_in].outs.push_back(i);
 			}
-			for (uint16_t j = 0; j < node.outs.size(); ++j)
+			for (index_type_t j = 0; j < node.outs.size(); ++j)
 			{
 				auto the_out = node.outs[j];
 				nodes[the_out].ins.push_back(i);
@@ -78,7 +78,7 @@ namespace HGEGraphics
 			node.ref_count = node.outs.size();
 		}
 
-		std::pmr::vector<uint16_t> cullingStack(memory_resource);
+		std::pmr::vector<index_type_t> cullingStack(memory_resource);
 		cullingStack.reserve(nodes.size());
 		for (auto i = 0; i < nodes.size(); ++i)
 		{
@@ -112,61 +112,65 @@ namespace HGEGraphics
 		{
 			auto const& node = nodes[i];
 			auto const& pass = renderGraph.passes[node.index];
-			if (node.is_culled())
-				continue;
-
-			auto& compiledPass = compiled.passes.emplace_back(pass.name, memory_resource);
-			compiledPass.type = pass.type;
-
-			compiledPass.reads.reserve(pass.reads.size());
-			for (auto edgeIndex : pass.reads)
+			if (!node.is_culled())
 			{
-				auto& edge = renderGraph.edges[edgeIndex];
-				compiledPass.reads.emplace_back(edge.from, edge.usage);
-			}
+				auto& compiledPass = compiled.passes.emplace_back(pass.name, memory_resource);
+				compiledPass.type = pass.type;
 
-			compiledPass.writes.reserve(pass.writes.size());
-			for (auto edgeIndex : pass.writes)
-			{
-				auto& edge = renderGraph.edges[edgeIndex];
-				compiledPass.writes.emplace_back(edge.to, edge.usage);
-			}
-
-			if (pass.type == PASS_TYPE_RENDER)
-			{
-				compiledPass.colorAttachmentCount = pass.render_context.colorAttachmentCount;
-				for (auto j = 0; j < pass.render_context.colorAttachmentCount; ++j)
+				compiledPass.reads.reserve(pass.reads.size());
+				for (auto edgeIndex : pass.reads)
 				{
-					compiledPass.colorAttachments[j] = pass.render_context.colorAttachments[j];
+					auto& edge = renderGraph.edges[edgeIndex];
+					compiledPass.reads.emplace_back(edge.from, edge.usage);
 				}
-				compiledPass.depthAttachment = pass.render_context.depthAttachment;
-				compiledPass.executable = pass.render_context.executable;
+
+				compiledPass.writes.reserve(pass.writes.size());
+				for (auto edgeIndex : pass.writes)
+				{
+					auto& edge = renderGraph.edges[edgeIndex];
+					compiledPass.writes.emplace_back(edge.to, edge.usage);
+				}
+
+				if (pass.type == PASS_TYPE_RENDER)
+				{
+					compiledPass.colorAttachmentCount = pass.render_context.colorAttachmentCount;
+					for (auto j = 0; j < pass.render_context.colorAttachmentCount; ++j)
+					{
+						compiledPass.colorAttachments[j] = pass.render_context.colorAttachments[j];
+					}
+					compiledPass.depthAttachment = pass.render_context.depthAttachment;
+					compiledPass.executable = pass.render_context.executable;
+				}
+				else if (pass.type == PASS_TYPE_COMPUTE)
+				{
+					compiledPass.executable = pass.compute_context.executable;
+				}
+				else if (pass.type == PASS_TYPE_UPLOAD_TEXTURE)
+				{
+					compiledPass.staging_buffer = pass.upload_texture_context.staging_buffer.index;
+					compiledPass.dest_texture = pass.upload_texture_context.dest_texture.index;
+					compiledPass.uploadTextureExecutable = pass.upload_texture_context.executable;
+					compiledPass.size = pass.upload_texture_context.size;
+					compiledPass.offset = pass.upload_texture_context.offset;
+					compiledPass.data = pass.upload_texture_context.data;
+					compiledPass.mipmap = pass.upload_texture_context.mipmap;
+					compiledPass.slice = pass.upload_texture_context.slice;
+				}
+				else if (pass.type == PASS_TYPE_UPLOAD_BUFFER)
+				{
+					compiledPass.staging_buffer = pass.upload_buffer_context.staging_buffer.index;
+					compiledPass.dest_buffer = pass.upload_buffer_context.dest_buffer.index;
+					compiledPass.uploadTextureExecutable = pass.upload_buffer_context.executable;
+					compiledPass.size = pass.upload_buffer_context.size;
+					compiledPass.offset = pass.upload_buffer_context.offset;
+					compiledPass.data = pass.upload_buffer_context.data;
+				}
+				compiledPass.passdata = pass.passdata;
 			}
-			else if (pass.type == PASS_TYPE_COMPUTE)
+			else
 			{
-				compiledPass.executable = pass.compute_context.executable;
+				compiled.passes.emplace_back();
 			}
-			else if (pass.type == PASS_TYPE_UPLOAD_TEXTURE)
-			{
-				compiledPass.staging_buffer = pass.upload_texture_context.staging_buffer.index().value();
-				compiledPass.dest_texture = pass.upload_texture_context.dest_texture.index().value();
-				compiledPass.uploadTextureExecutable = pass.upload_texture_context.executable;
-				compiledPass.size = pass.upload_texture_context.size;
-				compiledPass.offset = pass.upload_texture_context.offset;
-				compiledPass.data = pass.upload_texture_context.data;
-				compiledPass.mipmap = pass.upload_texture_context.mipmap;
-				compiledPass.slice = pass.upload_texture_context.slice;
-			}
-			else if (pass.type == PASS_TYPE_UPLOAD_BUFFER)
-			{
-				compiledPass.staging_buffer = pass.upload_buffer_context.staging_buffer.index().value();
-				compiledPass.dest_buffer = pass.upload_buffer_context.dest_buffer.index().value();
-				compiledPass.uploadTextureExecutable = pass.upload_buffer_context.executable;
-				compiledPass.size = pass.upload_buffer_context.size;
-				compiledPass.offset = pass.upload_buffer_context.offset;
-				compiledPass.data = pass.upload_buffer_context.data;
-			}
-			compiledPass.passdata = pass.passdata;
 		}
 
 		compiled.resources.reserve(usedResourceCount);
@@ -174,47 +178,56 @@ namespace HGEGraphics
 		{
 			auto const& node = nodes[i + passCount];
 			auto const& resource = renderGraph.resources[node.index];
-			if (node.is_culled())
-				continue;
-
-			if (resource.resourceType == ResourceType::Texture)
-				compiled.resources.emplace_back(resource.name, resource.manageType, resource.width, resource.height, resource.depth, resource.format, resource.texture, resource.mipCount, resource.arraySize, resource.parent, resource.mipLevel, resource.arraySlice);
-			else if (resource.resourceType == ResourceType::Buffer)
-				compiled.resources.emplace_back(resource.name, resource.manageType, resource.size, resource.buffer, resource.bufferType, resource.memoryUsage);
-
-			if (resource.manageType == ManageType::Managed)
+			if (!node.is_culled())
 			{
-				auto first = UINT16_MAX;
-				uint16_t last = 0;
-				if (!node.ins.empty())
+				if (resource.resourceType == ResourceType::Texture)
+					compiled.resources.emplace_back(resource.name, resource.manageType, resource.width, resource.height, resource.depth, resource.format, resource.texture, resource.mipCount, resource.arraySize, resource.parent, resource.mipLevel, resource.arraySlice);
+				else if (resource.resourceType == ResourceType::Buffer)
+					compiled.resources.emplace_back(resource.name, resource.manageType, resource.size, resource.buffer, resource.bufferType, resource.memoryUsage);
+			
+				if (resource.manageType == ManageType::Managed)
 				{
-					first = std::min(first, node.ins.front());
-					last = std::max(last, node.ins.back());
-				}
-				if (!node.outs.empty())
-				{
-					first = std::min(first, node.outs.front());
-					last = std::max(last, node.outs.back());
-				}
-				if (resource.holdOnLast)
-					last = passCount - 1;
+					index_type_t first = MAX_INDEX;
+					index_type_t last = 0;
+					if (!node.ins.empty())
+					{
+						first = std::min(first, node.ins.front());
+						last = std::max(last, node.ins.back());
+					}
+					if (!node.outs.empty())
+					{
+						first = std::min(first, node.outs.front());
+						last = std::max(last, node.outs.back());
+					}
+					if (resource.holdOnLast)
+						last = passCount - 1;
 
-				assert(first >= 0 && first < compiled.passes.size());
-				compiled.passes[first].devirtualize.push_back(i);
-				assert(last >= 0 && last < compiled.passes.size());
-				compiled.passes[last].destroy.push_back(i);
+					assert(first >= 0 && first < compiled.passes.size());
+					compiled.passes[first].devirtualize.push_back(i);
+					assert(last >= 0 && last < compiled.passes.size());
+					compiled.passes[last].destroy.push_back(i);
+				}
+			}
+			else
+			{
+				compiled.resources.emplace_back();
 			}
 		}
 
 		return compiled;
 	}
-	CompiledResourceNode::CompiledResourceNode(const char8_t* name, ManageType type, uint16_t width, uint16_t height, uint16_t depth, ECGPUFormat format, Texture* imported_texture, uint8_t mipCount, uint8_t arraySize, uint16_t parent, uint8_t mipLevel, uint8_t arraySlice)
+	CompiledResourceNode::CompiledResourceNode(const char8_t* name, ManageType type, uint16_t width, uint16_t height, uint16_t depth, ECGPUFormat format, Texture* imported_texture, uint8_t mipCount, uint8_t arraySize, index_type_t parent, uint8_t mipLevel, uint8_t arraySlice)
 		: name(name), resourceType(ResourceType::Texture), manageType(type), width(width), height(height), depth(depth), format(format), imported_texture(imported_texture), imported_buffer(CGPU_NULLPTR), managered_texture(nullptr), size(0), managed_buffer(nullptr), bufferType(CGPU_RESOURCE_TYPE_NONE), memoryUsage(CGPU_MEM_USAGE_UNKNOWN)
 		, mipCount(mipCount), arraySize(arraySize), parent(parent), mipLevel(mipLevel), arraySlice(arraySlice)
 	{
 	}
 	CompiledResourceNode::CompiledResourceNode(const char8_t* name, ManageType type, uint32_t size, Buffer* imported_buffer, CGPUResourceTypes bufferType, ECGPUMemoryUsage memoryUsage)
-		: name(name), resourceType(ResourceType::Buffer), manageType(type), size(size), width(0), height(0), depth(depth), format(CGPU_FORMAT_UNDEFINED), imported_texture(CGPU_NULLPTR), imported_buffer(imported_buffer), managered_texture(nullptr), managed_buffer(nullptr), bufferType(bufferType), memoryUsage(memoryUsage)
+		: name(name), resourceType(ResourceType::Buffer), manageType(type), size(size), width(0), height(0), depth(0), format(CGPU_FORMAT_UNDEFINED), imported_texture(CGPU_NULLPTR), imported_buffer(imported_buffer), managered_texture(nullptr), managed_buffer(nullptr), bufferType(bufferType), memoryUsage(memoryUsage)
+		, mipCount(0), arraySize(0), parent(0), mipLevel(0), arraySlice(0)
+	{
+	}
+	CompiledResourceNode::CompiledResourceNode()
+		: name(nullptr), resourceType(ResourceType::Texture), manageType(ManageType::Managed), width(0), height(0), depth(0), format(CGPU_FORMAT_UNDEFINED), imported_texture(nullptr), imported_buffer(CGPU_NULLPTR), managered_texture(nullptr), size(0), managed_buffer(nullptr), bufferType(CGPU_RESOURCE_TYPE_NONE), memoryUsage(CGPU_MEM_USAGE_UNKNOWN)
 		, mipCount(0), arraySize(0), parent(0), mipLevel(0), arraySlice(0)
 	{
 	}
@@ -222,23 +235,27 @@ namespace HGEGraphics
 		: name(name), reads(memory_resource), writes(memory_resource)
 	{
 	}
+	CompiledRenderPassNode::CompiledRenderPassNode()
+		: name(nullptr), type(PASS_TYPE_HOLDON), passdata(nullptr)
+	{
+	}
 	CompiledRenderGraph::CompiledRenderGraph(std::pmr::memory_resource* const memory_resource)
 		: passes(memory_resource), resources(memory_resource)
 	{
 	}
 
-	CGPUBufferId rendergraph_resolve_buffer(RenderPassEncoder* encoder, uint16_t buffer_handle)
+	CGPUBufferId rendergraph_resolve_buffer(RenderPassEncoder* encoder, buffer_handle_t buffer_handle)
 	{
 		auto crg = encoder->compiled_graph;
-		auto resourceNode = crg->resources[buffer_handle];
+		auto resourceNode = crg->resources[buffer_handle.index];
 		auto buffer = resourceNode.manageType == ManageType::Managed ? resourceNode.managed_buffer->handle : resourceNode.imported_buffer->handle;
 		return buffer;
 	}
 
-	CGPUTextureViewId rendergraph_resolve_texture_view(RenderPassEncoder* encoder, uint16_t texture_handle)
+	CGPUTextureViewId rendergraph_resolve_texture_view(RenderPassEncoder* encoder, texture_handle_t texture_handle)
 	{
 		auto crg = encoder->compiled_graph;
-		auto& resourceNode = crg->resources[texture_handle];
+		auto& resourceNode = crg->resources[texture_handle.index];
 		CGPUTextureViewDescriptor desc = {};
 		Texture* texture;
 		if (resourceNode.manageType == ManageType::Managed)

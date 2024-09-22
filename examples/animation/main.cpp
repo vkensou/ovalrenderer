@@ -77,7 +77,7 @@ void _init_resource(Application& app)
 	CGPURasterizerStateDescriptor rasterizer_state = {
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
-	app.shader = HGEGraphics::create_shader(app.device->device, "animation/object.vert.spv", "animation/object.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.shader = oval_create_shader(app.device, "animation/object.vert.spv", "animation/object.frag.spv", blend_desc, depth_desc, rasterizer_state);
 
 	CGPUSamplerDescriptor texture_sampler_desc = {
 		.min_filter = CGPU_FILTER_TYPE_LINEAR,
@@ -89,7 +89,7 @@ void _init_resource(Application& app)
 		.mip_lod_bias = 0,
 		.max_anisotropy = 1,
 	};
-	app.texture_sampler = cgpu_create_sampler(app.device->device, &texture_sampler_desc);
+	app.texture_sampler = oval_create_sampler(app.device, &texture_sampler_desc);
 
 	app.color_map = oval_load_texture(app.device, u8"media/textures/TilesGray512.ktx", true);
 
@@ -100,22 +100,22 @@ void _init_resource(Application& app)
 
 void _free_resource(Application& app)
 {
-	free_texture(app.color_map);
+	oval_free_texture(app.device, app.color_map);
 	app.color_map = nullptr;
 
-	free_mesh(app.mesh1);
+	oval_free_mesh(app.device, app.mesh1);
 	app.mesh1 = nullptr;
 
-	free_mesh(app.mesh2);
+	oval_free_mesh(app.device, app.mesh2);
 	app.mesh2 = nullptr;
 
-	free_mesh(app.mesh3);
+	oval_free_mesh(app.device, app.mesh3);
 	app.mesh3 = nullptr;
 
-	free_shader(app.shader);
+	oval_free_shader(app.device, app.shader);
 	app.shader = nullptr;
 
-	cgpu_free_sampler(app.texture_sampler);
+	oval_free_sampler(app.device, app.texture_sampler);
 	app.texture_sampler = nullptr;
 }
 
@@ -246,7 +246,7 @@ void on_imgui(oval_device_t* device)
 	}
 }
 
-void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::resource_handle_t rg_back_buffer)
+void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics::texture_handle_t rg_back_buffer)
 {
 	using namespace HGEGraphics;
 
