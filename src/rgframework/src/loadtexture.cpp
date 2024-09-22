@@ -186,11 +186,12 @@ HGEGraphics::Texture* oval_load_texture(oval_device_t* device, const char8_t* fi
 	WaitLoadResource resource;
 	resource.type = Texture;
 	size_t path_size = strlen((const char*)filepath) + 1;
-	char8_t* path = (char8_t*)D->memory_resource->allocate(path_size);
+	char8_t* path = (char8_t*)D->allocator.allocate_bytes(path_size);
 	memcpy(path, filepath, path_size);
 	resource.textureResource = {
 		.texture = HGEGraphics::create_empty_texture(),
 		.path = path,
+		.path_size = path_size,
 		.mipmap = mipmap,
 	};
 	resource.textureResource.texture->prepared = false;
@@ -219,6 +220,7 @@ void oval_load_texture_queue(oval_cgpu_device_t* device)
 			else
 				uploaded += load_texture_raw(device, queue, textureResource.texture, textureResource.path, textureResource.mipmap);
 			waited.textureResource.texture->prepared = true;
+			device->allocator.deallocate_bytes((void*)waited.textureResource.path, waited.textureResource.path_size);
 		}
 	}
 

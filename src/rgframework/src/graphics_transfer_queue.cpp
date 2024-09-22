@@ -59,15 +59,12 @@ void uploadTexture(HGEGraphics::rendergraph_t& rg, std::pmr::vector<HGEGraphics:
 	uploaded_texture_handles.push_back(texture_handle);
 }
 
-void oval_graphics_transfer_queue_execute(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t queue)
+void oval_graphics_transfer_queue_execute(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg, oval_graphics_transfer_queue_t queue)
 {
 	using namespace HGEGraphics;
 
 	if (queue->textures.empty())
 		return;
-
-	std::pmr::unsynchronized_pool_resource rg_pool(&queue->memory_resource);
-	rendergraph_t rg{ queue->textures.size() * 2, queue->textures.size() + 1, queue->textures.size() * 3, device->blit_shader, device->blit_linear_sampler, &rg_pool};
 
 	const uint32_t max_size = 1024 * 1024 * sizeof(uint32_t) * 10;
 	std::pmr::vector<HGEGraphics::texture_handle_t> uploaded_texture_handles(&queue->memory_resource);
@@ -96,18 +93,15 @@ void oval_graphics_transfer_queue_execute(oval_cgpu_device_t* device, oval_graph
 	for (auto& handle : uploaded_buffer_handle)
 		renderpass_use_buffer(&passBuilder, handle);
 	uploaded_buffer_handle.clear();
-
-	auto compiled = Compiler::Compile(rg, &rg_pool);
-	Executor::Execute(compiled, device->frameDatas[device->current_frame_index].execContext);
 }
 
-void oval_graphics_transfer_queue_execute_all(oval_cgpu_device_t* device)
+void oval_graphics_transfer_queue_execute_all(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg)
 {
 	while (!device->transfer_queue.empty())
 	{
 		auto queue = device->transfer_queue.front();
 		device->transfer_queue.pop();
-		oval_graphics_transfer_queue_execute(device, queue);
+		oval_graphics_transfer_queue_execute(device, rg, queue);
 		device->allocator.delete_object(queue);
 	}
 }

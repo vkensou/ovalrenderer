@@ -75,6 +75,7 @@ struct WaitLoadResource
 		struct {
 			HGEGraphics::Texture* texture;
 			const char8_t* path;
+			size_t path_size;
 			bool mipmap;
 		} textureResource;
 	};
@@ -162,4 +163,4 @@ typedef struct oval_cgpu_device_t {
 } oval_cgpu_device_t;
 
 void oval_load_texture_queue(oval_cgpu_device_t* device);
-void oval_graphics_transfer_queue_execute_all(oval_cgpu_device_t* device);
+void oval_graphics_transfer_queue_execute_all(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg);

@@ -429,6 +429,7 @@ void render(oval_cgpu_device_t* device, HGEGraphics::Backbuffer* backbuffer)
 	std::pmr::unsynchronized_pool_resource rg_pool(device->memory_resource);
 	rendergraph_t rg{ 1, 1, 1, device->blit_shader, device->blit_linear_sampler, &rg_pool };
 
+	oval_graphics_transfer_queue_execute_all(device, rg);
 	uploadResources(device, rg);
 
 	auto rg_back_buffer = rendergraph_import_backbuffer(&rg, backbuffer);
@@ -579,7 +580,7 @@ void oval_runloop(oval_device_t* device)
 		auto prepared_semaphore = D->swapchain_prepared_semaphores[D->current_frame_index];
 
 		oval_load_texture_queue(D);
-		oval_graphics_transfer_queue_execute_all(D);
+		
 
 		render(D, back_buffer);
 
