@@ -133,10 +133,18 @@ void initNoiseMap(Application& app, uint32_t width, uint32_t height, uint32_t de
 {
 	const uint32_t texMemSize = width * height * depth;
 
-	uint8_t* data = new uint8_t[texMemSize];
-	memset(data, 0, texMemSize);
-
-	auto tStart = std::chrono::high_resolution_clock::now();
+	CGPUTextureDescriptor descriptor =
+	{
+		.width = width,
+		.height = height,
+		.depth = depth,
+		.array_size = 1,
+		.format = CGPU_FORMAT_R8_UNORM,
+		.mip_levels = 1,
+		.descriptors = CGPU_RESOURCE_TYPE_TEXTURE,
+	};
+	app.noisemap = oval_create_texture(app.device, descriptor);
+	uint8_t* data = oval_graphics_set_texture_data_slice(app.device, app.noisemap, 0, 0, nullptr);
 
 	PerlinNoise<float> perlinNoise(true);
 	FractalNoise<float> fractalNoise(perlinNoise);
@@ -158,20 +166,6 @@ void initNoiseMap(Application& app, uint32_t width, uint32_t height, uint32_t de
 			}
 		}
 	}
-
-	CGPUTextureDescriptor descriptor =
-	{
-		.width = width,
-		.height = height,
-		.depth = depth,
-		.array_size = 1,
-		.format = CGPU_FORMAT_R8_UNORM,
-		.mip_levels = 1,
-		.descriptors = CGPU_RESOURCE_TYPE_TEXTURE,
-	};
-	app.noisemap = oval_create_texture_from_buffer(app.device, descriptor, data, texMemSize);
-
-	delete[] data;
 }
 
 void _init_resource(Application& app)

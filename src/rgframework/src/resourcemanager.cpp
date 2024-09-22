@@ -194,6 +194,6 @@ uint8_t* oval_graphics_set_texture_data_slice(oval_device_t* device, HGEGraphics
 	auto D = (oval_cgpu_device_t*)device;
 
 	oval_ensure_cur_transfer_queue(D);
-
+	texture->prepared = true;
 	return oval_graphics_transfer_queue_transfer_data_to_texture_slice(D->cur_transfer_queue, texture, mipmap, slice, size);
 }

@@ -117,7 +117,7 @@ void oval_graphics_transfer_queue_execute(oval_cgpu_device_t* device, HGEGraphic
 {
 	using namespace HGEGraphics;
 
-	if (queue->textures.empty())
+	if (queue->textures.empty() && queue->buffers.empty())
 		return;
 
 	const uint32_t max_size = 1024 * 1024 * sizeof(uint32_t) * 10;

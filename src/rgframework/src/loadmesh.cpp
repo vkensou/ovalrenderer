@@ -116,16 +116,15 @@ uint64_t load_mesh(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t qu
 	auto vertex_data = oval_graphics_transfer_queue_transfer_data_to_buffer(queue, vertex_data_size, mesh->vertex_buffer);
 	memcpy(vertex_data, data->data(), vertex_data_size);
 
+	uint64_t index_data_size = mesh->index_count * mesh->index_stride;
 	if (indices)
 	{
-		uint64_t index_data_size = mesh->index_count * mesh->index_stride;
 		auto index_data = oval_graphics_transfer_queue_transfer_data_to_buffer(queue, index_data_size, mesh->index_buffer);
 		memcpy(index_data, indices->data(), index_data_size);
 	}
 
-
 	delete data;
 	delete indices;
 
-	return 0;
+	return vertex_data_size + index_data_size;
 }
