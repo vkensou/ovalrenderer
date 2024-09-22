@@ -50,6 +50,7 @@ namespace HGEGraphics
 		CGPUBufferId handle;
 		ECGPUResourceType type;
 		ECGPUResourceState cur_state;
+		buffer_handle_t dynamic_handle;
 	};
 
 	Buffer* create_buffer(CGPUDeviceId device, const CGPUBufferDescriptor& desc);
@@ -63,8 +64,6 @@ namespace HGEGraphics
 		uint32_t index_stride;
 		uint32_t vertices_count;
 		uint32_t index_count;
-		buffer_handle_t dynamic_vertex_buffer_handle;
-		buffer_handle_t dynamic_index_buffer_handle;
 		Buffer* vertex_buffer;
 		Buffer* index_buffer;
 		bool prepared;
@@ -86,6 +85,7 @@ namespace HGEGraphics
 		std::vector<ECGPUResourceState> cur_states;
 		bool states_consistent;
 		bool prepared;
+		texture_handle_t dynamic_handle;
 	};
 
 	Texture* create_empty_texture();

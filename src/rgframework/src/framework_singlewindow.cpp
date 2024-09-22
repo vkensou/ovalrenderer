@@ -384,8 +384,8 @@ void renderImgui(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg, HGE
 		auto passBuilder = rendergraph_add_renderpass(&rg, u8"Main Pass");
 		uint32_t color = 0xffffffff;
 		renderpass_add_color_attachment(&passBuilder, rg_back_buffer, ECGPULoadAction::CGPU_LOAD_ACTION_LOAD, color, ECGPUStoreAction::CGPU_STORE_ACTION_STORE);
-		renderpass_use_buffer(&passBuilder, device->imgui_mesh->dynamic_vertex_buffer_handle);
-		renderpass_use_buffer(&passBuilder, device->imgui_mesh->dynamic_index_buffer_handle);
+		renderpass_use_buffer(&passBuilder, device->imgui_mesh->vertex_buffer->dynamic_handle);
+		renderpass_use_buffer(&passBuilder, device->imgui_mesh->index_buffer->dynamic_handle);
 
 		void* passdata = nullptr;
 		renderpass_set_executable(&passBuilder, [](RenderPassEncoder* encoder, void* passdata)
@@ -453,7 +453,14 @@ void render(oval_cgpu_device_t* device, HGEGraphics::Backbuffer* backbuffer)
 	auto compiled = Compiler::Compile(rg, &rg_pool);
 	Executor::Execute(compiled, device->frameDatas[device->current_frame_index].execContext);
 
-	dynamic_mesh_reset(device->imgui_mesh);
+	for (auto imported : rg.imported_textures)
+	{
+		imported->dynamic_handle = {};
+	}
+	for (auto imported : rg.imported_buffers)
+	{
+		imported->dynamic_handle = {};
+	}
 
 	oval_graphics_transfer_queue_release_all(device);
 }

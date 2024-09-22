@@ -131,7 +131,8 @@ namespace HGEGraphics
 
 	void free_buffer(Buffer* buffer)
 	{
-		cgpu_free_buffer(buffer->handle);
+		if (buffer->handle)
+			cgpu_free_buffer(buffer->handle);
 		delete buffer;
 	}
 
@@ -145,8 +146,6 @@ namespace HGEGraphics
 		mesh->index_stride = 0;
 		mesh->vertex_buffer = nullptr;
 		mesh->index_buffer = nullptr;
-		mesh->dynamic_vertex_buffer_handle = {};
-		mesh->dynamic_index_buffer_handle = {};
 		mesh->prepared = false;
 		return mesh;
 	}
@@ -203,40 +202,40 @@ namespace HGEGraphics
 			mesh->vertex_stride += vertex_layout.attributes[i].elem_stride;
 		}
 		mesh->index_stride = index_stride;
-		mesh->vertex_buffer = CGPU_NULLPTR;
-		mesh->index_buffer = CGPU_NULLPTR;
+		mesh->vertex_buffer = new Buffer();
+		mesh->index_buffer = new Buffer();
 		mesh->prepared = true;
 		return mesh;
 	}
 
 	buffer_handle_t declare_dynamic_vertex_buffer(Mesh* mesh, rendergraph_t* rg, uint32_t count)
 	{
-		auto dynamic_vertex_buffer = rendergraph_declare_buffer(rg);
+		auto dynamic_vertex_buffer = rendergraph_import_dynamic_buffer(rg, mesh->vertex_buffer);
 		rg_buffer_set_size(rg, dynamic_vertex_buffer, count * mesh->vertex_stride);
 		rg_buffer_set_type(rg, dynamic_vertex_buffer, CGPU_RESOURCE_TYPE_VERTEX_BUFFER);
 		rg_buffer_set_usage(rg, dynamic_vertex_buffer, CGPU_MEM_USAGE_GPU_ONLY);
-		mesh->dynamic_vertex_buffer_handle = dynamic_vertex_buffer;
+		mesh->vertex_buffer->dynamic_handle = dynamic_vertex_buffer;
 		mesh->vertices_count = count;
-		return mesh->dynamic_vertex_buffer_handle;
+		return mesh->vertex_buffer->dynamic_handle;
 	}
 
 	buffer_handle_t declare_dynamic_index_buffer(Mesh* mesh, rendergraph_t* rg, uint32_t count)
 	{
-		auto dynamic_index_buffer = rendergraph_declare_buffer(rg);
+		auto dynamic_index_buffer = rendergraph_import_dynamic_buffer(rg, mesh->index_buffer);
 		rg_buffer_set_size(rg, dynamic_index_buffer, count * mesh->index_stride);
 		rg_buffer_set_type(rg, dynamic_index_buffer, CGPU_RESOURCE_TYPE_INDEX_BUFFER);
 		rg_buffer_set_usage(rg, dynamic_index_buffer, CGPU_MEM_USAGE_GPU_ONLY);
-		mesh->dynamic_index_buffer_handle = dynamic_index_buffer;
+		mesh->index_buffer->dynamic_handle = dynamic_index_buffer;
 		mesh->index_count = count;
-		return mesh->dynamic_index_buffer_handle;
+		return mesh->index_buffer->dynamic_handle;
 	}
 
 	void dynamic_mesh_reset(Mesh* mesh)
 	{
 		mesh->vertices_count = 0;
 		mesh->index_count = 0;
-		mesh->dynamic_vertex_buffer_handle = {};
-		mesh->dynamic_index_buffer_handle = {};
+		mesh->vertex_buffer->dynamic_handle = {};
+		mesh->index_buffer->dynamic_handle = {};
 	}
 
 	void free_mesh(Mesh* mesh)
@@ -463,9 +462,9 @@ namespace HGEGraphics
 	void update_mesh(RenderPassEncoder* encoder, Mesh* mesh)
 	{
 		CGPUBufferId vertex_buffer = CGPU_NULLPTR;
-		if (rendergraph_buffer_handle_valid(mesh->dynamic_vertex_buffer_handle))
+		if (rendergraph_buffer_handle_valid(mesh->vertex_buffer->dynamic_handle))
 		{
-			auto vertex_buffer_handle = mesh->dynamic_vertex_buffer_handle;
+			auto vertex_buffer_handle = mesh->vertex_buffer->dynamic_handle;
 			vertex_buffer = rendergraph_resolve_buffer(encoder, vertex_buffer_handle);
 		}
 		else if (mesh->vertex_buffer)
@@ -482,14 +481,17 @@ namespace HGEGraphics
 		}
 
 		CGPUBufferId index_buffer = CGPU_NULLPTR;
-		if (rendergraph_buffer_handle_valid(mesh->dynamic_index_buffer_handle))
+		if (mesh->index_buffer)
 		{
-			auto index_buffer_handle = mesh->dynamic_index_buffer_handle;
-			index_buffer = rendergraph_resolve_buffer(encoder, index_buffer_handle);
-		}
-		else if (mesh->index_buffer)
-		{
-			index_buffer = mesh->index_buffer->handle;
+			if (rendergraph_buffer_handle_valid(mesh->index_buffer->dynamic_handle))
+			{
+				auto index_buffer_handle = mesh->index_buffer->dynamic_handle;
+				index_buffer = rendergraph_resolve_buffer(encoder, index_buffer_handle);
+			}
+			else
+			{
+				index_buffer = mesh->index_buffer->handle;
+			}
 		}
 		const uint32_t index_stride = mesh->index_stride;
 		if (encoder->last_index_buffer != index_buffer || encoder->last_index_buffer_stride != index_stride)

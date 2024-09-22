@@ -74,8 +74,7 @@ uint8_t* oval_graphics_transfer_queue_transfer_data_to_texture_slice(oval_graphi
 
 void uploadBuffer(HGEGraphics::rendergraph_t& rg, std::pmr::vector<HGEGraphics::buffer_handle_t>& uploaded_buffer_handles, oval_transfer_data_to_buffer& waited)
 {
-	auto buffer_handle = rendergraph_declare_buffer(&rg);
-	rg_buffer_import(&rg, buffer_handle, waited.buffer);
+	auto buffer_handle = rendergraph_import_buffer(&rg, waited.buffer);
 	uint64_t size = waited.size;
 	rendergraph_add_uploadbufferpass_ex(&rg, u8"upload buffer", buffer_handle, size, 0, waited.data, nullptr, 0, nullptr);
 	uploaded_buffer_handles.push_back(buffer_handle);

@@ -41,7 +41,7 @@ namespace HGEGraphics
 	}
 
 	rendergraph_t::rendergraph_t(size_t estimate_resource_count, size_t estimate_pass_count, size_t estimate_edge_count, Shader* blitShader, CGPUSamplerId blitSampler, std::pmr::memory_resource* const resource)
-		: allocator(resource), resources(resource), passes(resource), edges(resource), blitShader(blitShader), blitSampler(blitSampler)
+		: allocator(resource), resources(resource), passes(resource), edges(resource), blitShader(blitShader), blitSampler(blitSampler), imported_textures(resource), imported_buffers(resource)
 	{
 		resources.reserve(estimate_resource_count);
 		resources.push_back({});
@@ -233,6 +233,9 @@ namespace HGEGraphics
 	}
 	texture_handle_t rendergraph_import_texture(rendergraph_t* self, Texture* imported)
 	{
+		if (is_valid_dynamic_texture_handle(self->resources, imported->dynamic_handle))
+			return imported->dynamic_handle;
+
 		assert(self->resources.size() <= MAX_INDEX);
 		self->resources.push_back(ResourceNode());
 		auto& resourceNode = self->resources.back();
@@ -246,26 +249,19 @@ namespace HGEGraphics
 		resourceNode.arraySize = imported->handle->info->array_size_minus_one + 1;
 		resourceNode.mipLevel = 0;
 		resourceNode.arraySlice = 0;
-		return make_texture_handle(self->resources.size() - 1);
+		auto handle = imported->dynamic_handle = make_texture_handle(self->resources.size() - 1);
+		self->imported_textures.push_back(imported);
+		return handle;
 	}
 	texture_handle_t rendergraph_import_backbuffer(rendergraph_t* self, Backbuffer* imported)
 	{
 		assert(self->resources.size() <= MAX_INDEX);
 		self->resources.push_back(ResourceNode());
 		auto& resourceNode = self->resources.back();
-		imported->texture.cur_states[0] = CGPU_RESOURCE_STATE_UNDEFINED;
-		imported->texture.states_consistent = true;
-		resourceNode.texture = &(imported->texture);
-		resourceNode.manageType = ManageType::Imported;
-		resourceNode.width = imported->texture.handle->info->width;
-		resourceNode.height = imported->texture.handle->info->height;
-		resourceNode.depth = imported->texture.handle->info->depth;
-		resourceNode.format = imported->texture.handle->info->format;
-		resourceNode.mipCount = imported->texture.handle->info->mip_levels;
-		resourceNode.arraySize = imported->texture.handle->info->array_size_minus_one + 1;
-		resourceNode.mipLevel = 0;
-		resourceNode.arraySlice = 0;
-		return make_texture_handle(self->resources.size() - 1);
+		auto texture = &imported->texture;
+		texture->cur_states[0] = CGPU_RESOURCE_STATE_UNDEFINED;
+		texture->states_consistent = true;
+		return rendergraph_import_texture(self, texture);
 	}
 	buffer_handle_t rendergraph_declare_buffer(rendergraph_t* self)
 	{
@@ -276,6 +272,36 @@ namespace HGEGraphics
 		resource.width = 0;
 		resource.memoryUsage = CGPU_MEM_USAGE_UNKNOWN;
 		return make_buffer_handle(self->resources.size() - 1);
+	}
+	buffer_handle_t rendergraph_import_buffer(rendergraph_t* self, Buffer* imported)
+	{
+		assert(self->resources.size() <= MAX_INDEX);
+		self->resources.push_back(ResourceNode());
+		auto& resourceNode = self->resources.back();
+		resourceNode.resourceType = ResourceType::Buffer;
+		resourceNode.width = 0;
+		resourceNode.memoryUsage = CGPU_MEM_USAGE_UNKNOWN;
+		resourceNode.buffer = imported;
+		resourceNode.manageType = ManageType::Imported;
+		resourceNode.size = imported->handle->info->size;
+		resourceNode.bufferType = imported->type;
+		resourceNode.memoryUsage = (ECGPUMemoryUsage)imported->handle->info->memory_usage;
+		return make_buffer_handle(self->resources.size() - 1);
+	}
+	buffer_handle_t rendergraph_import_dynamic_buffer(rendergraph_t* self, Buffer* imported)
+	{
+		if (is_valid_dynamic_buffer_handle(self->resources, imported->dynamic_handle))
+			return imported->dynamic_handle;
+
+		assert(self->resources.size() <= MAX_INDEX);
+		self->resources.push_back(ResourceNode());
+		auto& resource = self->resources.back();
+		resource.resourceType = ResourceType::Buffer;
+		resource.width = 0;
+		resource.memoryUsage = CGPU_MEM_USAGE_UNKNOWN;
+		auto handle = imported->dynamic_handle = make_buffer_handle(self->resources.size() - 1);
+		self->imported_buffers.push_back(imported);
+		return handle;
 	}
 	buffer_handle_t rendergraph_declare_uniform_buffer_quick(rendergraph_t* self, uint32_t size, void* data)
 	{
@@ -606,17 +632,6 @@ namespace HGEGraphics
 		auto& resourceNode = self->resources[get_buffer_handle_index(buffer)];
 		assert(resourceNode.resourceType == ResourceType::Buffer);
 		resourceNode.memoryUsage = usage;
-	}
-	void rg_buffer_import(rendergraph_t* self, buffer_handle_t buffer, Buffer* imported)
-	{
-		assert(is_valid_dynamic_buffer_handle(self->resources, buffer));
-		auto& resourceNode = self->resources[get_buffer_handle_index(buffer)];
-		assert(resourceNode.resourceType == ResourceType::Buffer);
-		resourceNode.buffer = imported;
-		resourceNode.manageType = ManageType::Imported;
-		resourceNode.size = imported->handle->info->size;
-		resourceNode.bufferType = imported->type;
-		resourceNode.memoryUsage = (ECGPUMemoryUsage)imported->handle->info->memory_usage;
 	}
 	void rg_buffer_set_hold_on_last(rendergraph_t* self, buffer_handle_t buffer)
 	{

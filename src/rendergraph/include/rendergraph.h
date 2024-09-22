@@ -211,7 +211,6 @@ namespace HGEGraphics
 	void rg_buffer_set_size(rendergraph_t* self, buffer_handle_t buffer, uint32_t size);
 	void rg_buffer_set_type(rendergraph_t* self, buffer_handle_t buffer, ECGPUResourceType type);
 	void rg_buffer_set_usage(rendergraph_t* self, buffer_handle_t buffer, ECGPUMemoryUsage usage);
-	void rg_buffer_import(rendergraph_t* self, buffer_handle_t buffer, Buffer* imported);
 	void rg_buffer_set_hold_on_last(rendergraph_t* self, buffer_handle_t buffer);
 
 	struct rendergraph_t
@@ -225,6 +224,8 @@ namespace HGEGraphics
 		allocator_type allocator;
 		Shader* blitShader;
 		CGPUSamplerId blitSampler;
+		std::pmr::vector<Texture*> imported_textures;
+		std::pmr::vector<Buffer*> imported_buffers;
 	};
 
 	void rendergraph_reset(rendergraph_t* self);
@@ -249,6 +250,8 @@ namespace HGEGraphics
 	texture_handle_t rendergraph_import_texture(rendergraph_t* self, Texture* imported);
 	texture_handle_t rendergraph_import_backbuffer(rendergraph_t* self, Backbuffer* imported);
 	buffer_handle_t rendergraph_declare_buffer(rendergraph_t* self);
+	buffer_handle_t rendergraph_import_buffer(rendergraph_t* self, Buffer* imported);
+	buffer_handle_t rendergraph_import_dynamic_buffer(rendergraph_t* self, Buffer* imported);
 	buffer_handle_t rendergraph_declare_uniform_buffer_quick(rendergraph_t* self, uint32_t size, void* data);
 	texture_handle_t rendergraph_declare_texture_subresource(rendergraph_t* self, texture_handle_t parent, uint8_t mipmap, uint8_t slice);
 	uint32_t rendergraph_add_edge(rendergraph_t* self, index_type_t from, index_type_t to, ECGPUResourceState usage);
