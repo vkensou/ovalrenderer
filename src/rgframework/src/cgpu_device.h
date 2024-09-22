@@ -14,6 +14,9 @@ struct oval_transfer_data_to_texture
 	HGEGraphics::Texture* texture;
 	uint8_t* data;
 	uint64_t size;
+	uint32_t mipmap;
+	uint32_t slice;
+	bool transfer_full;
 	bool generate_mipmap;
 };
 
@@ -140,6 +143,7 @@ typedef struct oval_cgpu_device_t {
 
 	std::pmr::vector<oval_graphics_transfer_queue*> transfer_queue;
 	std::queue<WaitLoadResource, std::pmr::deque<WaitLoadResource>> wait_load_resources;
+	oval_graphics_transfer_queue* cur_transfer_queue = nullptr;
 
 	HGEGraphics::Texture* default_texture;
 } oval_cgpu_device_t;

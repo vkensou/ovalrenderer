@@ -29,13 +29,45 @@ uint8_t* oval_graphics_transfer_queue_transfer_data_to_buffer(oval_graphics_tran
 	return data;
 }
 
-uint8_t* oval_graphics_transfer_queue_transfer_data_to_texture(oval_graphics_transfer_queue_t queue, uint64_t size, HGEGraphics::Texture* texture, bool generate_mipmap)
+uint8_t* oval_graphics_transfer_queue_transfer_data_to_texture_full(oval_graphics_transfer_queue_t queue, HGEGraphics::Texture* texture, bool generate_mipmap, uint64_t* size)
 {
-	assert(size > 0);
 	assert(texture != nullptr);
-	uint8_t* data = (uint8_t*)queue->memory_resource.allocate(size);
+
+	auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
+
+	uint64_t used_size = 0;
+	for (size_t mipmap = 0; mipmap < texture->handle->info->mip_levels; ++mipmap)
+	{
+		const uint64_t xBlocksCount = mipedSize(texture->handle->info->width, mipmap) / FormatUtil_WidthOfBlock(texture->handle->info->format);
+		const uint64_t yBlocksCount = mipedSize(texture->handle->info->height, mipmap) / FormatUtil_HeightOfBlock(texture->handle->info->format);
+		const uint64_t zBlocksCount = mipedSize(texture->handle->info->depth, mipmap);
+		used_size += xBlocksCount * yBlocksCount * zBlocksCount * (texture->handle->info->array_size_minus_one + 1) * FormatUtil_BitSizeOfBlock(texture->handle->info->format) / 8;
+	}
+
+	uint8_t* data = (uint8_t*)queue->memory_resource.allocate(used_size);
 	assert(data != nullptr);
-	queue->textures.emplace_back(texture, data, size, generate_mipmap);
+	queue->textures.emplace_back(texture, data, used_size, 0, 0, true, generate_mipmap);
+	if (size)
+		*size = used_size;
+	return data;
+}
+
+uint8_t* oval_graphics_transfer_queue_transfer_data_to_texture_slice(oval_graphics_transfer_queue_t queue, HGEGraphics::Texture* texture, uint32_t mipmap, uint32_t slice, uint64_t* size)
+{
+	assert(texture != nullptr);
+
+	auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
+
+	const uint64_t xBlocksCount = mipedSize(texture->handle->info->width, mipmap) / FormatUtil_WidthOfBlock(texture->handle->info->format);
+	const uint64_t yBlocksCount = mipedSize(texture->handle->info->height, mipmap) / FormatUtil_HeightOfBlock(texture->handle->info->format);
+	const uint64_t zBlocksCount = mipedSize(texture->handle->info->depth, mipmap);
+	uint64_t used_size = xBlocksCount * yBlocksCount * zBlocksCount * FormatUtil_BitSizeOfBlock(texture->handle->info->format) / 8;
+
+	uint8_t* data = (uint8_t*)queue->memory_resource.allocate(used_size);
+	assert(data != nullptr);
+	queue->textures.emplace_back(texture, data, used_size, mipmap, slice, false, false);
+	if (size)
+		*size = used_size;
 	return data;
 }
 
@@ -52,20 +84,27 @@ void uploadTexture(HGEGraphics::rendergraph_t& rg, std::pmr::vector<HGEGraphics:
 {
 	auto texture_handle = rendergraph_import_texture(&rg, waited.texture);
 
-	auto data = waited.data;
-	for (size_t mipmap = 0; mipmap < (waited.generate_mipmap ? 1 : waited.texture->handle->info->mip_levels); ++mipmap)
+	if (waited.transfer_full)
 	{
-		for (size_t slice = 0; slice < waited.texture->handle->info->array_size_minus_one + 1; ++slice)
+		auto data = waited.data;
+		for (size_t mipmap = 0; mipmap < (waited.generate_mipmap ? 1 : waited.texture->handle->info->mip_levels); ++mipmap)
 		{
-			auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
-			const uint64_t xBlocksCount = mipedSize(waited.texture->handle->info->width, mipmap) / FormatUtil_WidthOfBlock(waited.texture->handle->info->format);
-			const uint64_t yBlocksCount = mipedSize(waited.texture->handle->info->height, mipmap) / FormatUtil_HeightOfBlock(waited.texture->handle->info->format);
-			const uint64_t zBlocksCount = mipedSize(waited.texture->handle->info->depth, mipmap);
-			uint64_t size = xBlocksCount * yBlocksCount * zBlocksCount * FormatUtil_BitSizeOfBlock(waited.texture->handle->info->format) / 8;
-			uint64_t offset = 0;
-			rendergraph_add_uploadtexturepass_ex(&rg, u8"upload texture", texture_handle, mipmap, slice, size, offset, data, [](HGEGraphics::UploadEncoder* encoder, void* passdata) {}, 0, nullptr);
-			data += size;
+			for (size_t slice = 0; slice < waited.texture->handle->info->array_size_minus_one + 1; ++slice)
+			{
+				auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
+				const uint64_t xBlocksCount = mipedSize(waited.texture->handle->info->width, mipmap) / FormatUtil_WidthOfBlock(waited.texture->handle->info->format);
+				const uint64_t yBlocksCount = mipedSize(waited.texture->handle->info->height, mipmap) / FormatUtil_HeightOfBlock(waited.texture->handle->info->format);
+				const uint64_t zBlocksCount = mipedSize(waited.texture->handle->info->depth, mipmap);
+				uint64_t size = xBlocksCount * yBlocksCount * zBlocksCount * FormatUtil_BitSizeOfBlock(waited.texture->handle->info->format) / 8;
+				uint64_t offset = 0;
+				rendergraph_add_uploadtexturepass_ex(&rg, u8"upload texture", texture_handle, mipmap, slice, size, offset, data, [](HGEGraphics::UploadEncoder* encoder, void* passdata) {}, 0, nullptr);
+				data += size;
+			}
 		}
+	}
+	else
+	{
+		rendergraph_add_uploadtexturepass_ex(&rg, u8"upload texture", texture_handle, waited.mipmap, waited.slice, waited.size, 0, waited.data, [](HGEGraphics::UploadEncoder* encoder, void* passdata) {}, 0, nullptr);
 	}
 
 	if (waited.texture->handle->info->mip_levels > 1 && waited.generate_mipmap)

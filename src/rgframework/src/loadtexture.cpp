@@ -85,17 +85,10 @@ uint64_t load_texture_ktx(oval_cgpu_device_t* device, oval_graphics_transfer_que
 
 	HGEGraphics::init_texture(texture, device->device, texture_desc);
 
-	uint64_t size = width * height * component;
 	auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
-	for (size_t mipmap = 0; mipmap < mipLevels; ++mipmap)
-	{
-		const uint64_t mipedWidth = mipedSize(width, mipmap);
-		const uint64_t mipedHeight = mipedSize(height, mipmap);
-		size += mipedWidth * mipedHeight * component * arraySize;
-	}
-
+	uint64_t size = 0;
 	uint32_t textureComponent = FormatUtil_BitSizeOfBlock(texture->handle->info->format) / 8;
-	auto data = oval_graphics_transfer_queue_transfer_data_to_texture(queue, size, texture, generateMipmap);
+	auto data = oval_graphics_transfer_queue_transfer_data_to_texture_full(queue, texture, generateMipmap, &size);
 	{
 		auto offset_data = data;
 		auto ktxTextureData = ktxTexture_GetData(ktxTexture);
@@ -117,10 +110,10 @@ uint64_t load_texture_ktx(oval_cgpu_device_t* device, oval_graphics_transfer_que
 					}
 					else
 					{
+						assert(ktxTextureDataSize >= ktxTextureMipmapOffset + mipedWidth * mipedHeight * component);
+						assert(data + size >= offset_data + mipedWidth * mipedHeight * textureComponent);
 						for (size_t i = 0; i < mipedWidth * mipedHeight; ++i)
 						{
-							assert(ktxTextureDataSize >= ktxTextureMipmapOffset + i * component + component);
-							assert(data + size >= offset_data + i * textureComponent + textureComponent);
 							memcpy(offset_data + i * textureComponent, ktxTextureData + ktxTextureMipmapOffset + i * component, component);
 						}
 					}
@@ -171,9 +164,10 @@ uint64_t load_texture_raw(oval_cgpu_device_t* device, oval_graphics_transfer_que
 
 	HGEGraphics::init_texture(texture, device->device, texture_desc);
 
-	uint64_t size = width * height * 4;
+	uint64_t size = 0;
 	bool genenrate_mipmap = mipmap && texture->handle->info->mip_levels > 1;
-	auto data = oval_graphics_transfer_queue_transfer_data_to_texture(queue, size, texture, genenrate_mipmap);
+	auto data = oval_graphics_transfer_queue_transfer_data_to_texture_full(queue, texture, genenrate_mipmap, &size);
+	assert(size == width * height * 4);
 	memcpy(data, texture_loader, size);
 
 	stbi_image_free(texture_loader);

@@ -52,4 +52,6 @@ HGEGraphics::Buffer* oval_mesh_get_vertex_buffer(oval_device_t* device, HGEGraph
 oval_graphics_transfer_queue_t oval_graphics_transfer_queue_alloc(oval_device_t* device);
 void oval_graphics_transfer_queue_submit(oval_device_t* device, oval_graphics_transfer_queue_t queue);
 uint8_t* oval_graphics_transfer_queue_transfer_data_to_buffer(oval_graphics_transfer_queue_t queue, uint64_t size, HGEGraphics::Buffer* buffer);
-uint8_t* oval_graphics_transfer_queue_transfer_data_to_texture(oval_graphics_transfer_queue_t queue, uint64_t size, HGEGraphics::Texture* texture, bool generate_mipmap);
+uint8_t* oval_graphics_transfer_queue_transfer_data_to_texture_full(oval_graphics_transfer_queue_t queue, HGEGraphics::Texture* texture, bool generate_mipmap, uint64_t* size);
+uint8_t* oval_graphics_transfer_queue_transfer_data_to_texture_slice(oval_graphics_transfer_queue_t queue, HGEGraphics::Texture* texture, uint32_t mipmap, uint32_t slice, uint64_t* size);
+uint8_t* oval_graphics_set_texture_data_slice(oval_device_t* device, HGEGraphics::Texture* texture, uint32_t mipmap, uint32_t slice, uint64_t* size);

@@ -175,8 +175,6 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 
 	device_cgpu->render_finished_semaphore = cgpu_create_semaphore(device_cgpu->device);
 
-	auto init_queue = oval_graphics_transfer_queue_alloc(&device_cgpu->super);
-
 	{
 		uint64_t width = 4;
 		uint64_t height = 4;
@@ -194,7 +192,8 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 			.descriptors = CGPU_RESOURCE_TYPE_TEXTURE,
 		};
 		device_cgpu->default_texture = oval_create_texture(&device_cgpu->super, default_texture_desc);
-		auto colors = (uint32_t*)oval_graphics_transfer_queue_transfer_data_to_texture(init_queue, sizeof(uint32_t) * count, device_cgpu->default_texture, false);
+		uint64_t size = 0;
+		auto colors = (uint32_t*)oval_graphics_set_texture_data_slice(&device_cgpu->super, device_cgpu->default_texture,  0, 0, &size);
 		std::fill(colors, colors + count, 0xffff00ff);
 		for (int i = 0; i < 3; ++i)
 		{
@@ -310,12 +309,11 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 			.descriptors = CGPU_RESOURCE_TYPE_TEXTURE,
 		};
 		device_cgpu->imgui_font_texture = oval_create_texture(&device_cgpu->super, imgui_font_texture_desc);
-		auto colors = oval_graphics_transfer_queue_transfer_data_to_texture(init_queue, sizeof(uint32_t) * count, device_cgpu->imgui_font_texture, false);
+		uint64_t size = 0;
+		auto colors = oval_graphics_set_texture_data_slice(&device_cgpu->super, device_cgpu->imgui_font_texture, 0, 0, &size);
 		memcpy(colors, fontPixels, sizeof(uint32_t) * count);
 		device_cgpu->imgui_font_texture->prepared = true;
 	}
-
-	oval_graphics_transfer_queue_submit(&device_cgpu->super, init_queue);
 
 	CGPUSamplerDescriptor imgui_font_sampler_desc = {
 		.min_filter = CGPU_FILTER_TYPE_LINEAR,
@@ -595,6 +593,9 @@ void oval_runloop(oval_device_t* device)
 		auto back_buffer = &D->backbuffer[D->info.current_swapchain_index];
 		auto prepared_semaphore = D->swapchain_prepared_semaphores[D->current_frame_index];
 
+		if (D->cur_transfer_queue)
+			oval_graphics_transfer_queue_submit(device, D->cur_transfer_queue);
+		D->cur_transfer_queue = nullptr;
 		oval_process_load_queue(D);
 
 		render(D, back_buffer);

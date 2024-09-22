@@ -156,3 +156,20 @@ void oval_process_load_queue(oval_cgpu_device_t* device)
 
 	oval_graphics_transfer_queue_submit(&device->super, queue);
 }
+
+void oval_ensure_cur_transfer_queue(oval_cgpu_device_t* device)
+{
+	if (device->cur_transfer_queue != nullptr)
+		return;
+
+	device->cur_transfer_queue = oval_graphics_transfer_queue_alloc(&device->super);
+}
+
+uint8_t* oval_graphics_set_texture_data_slice(oval_device_t* device, HGEGraphics::Texture* texture, uint32_t mipmap, uint32_t slice, uint64_t* size)
+{
+	auto D = (oval_cgpu_device_t*)device;
+
+	oval_ensure_cur_transfer_queue(D);
+
+	return oval_graphics_transfer_queue_transfer_data_to_texture_slice(D->cur_transfer_queue, texture, mipmap, slice, size);
+}
