@@ -12,7 +12,7 @@
 struct oval_transfer_data_to_texture
 {
 	HGEGraphics::Texture* texture;
-	void* data;
+	uint8_t* data;
 	uint64_t size;
 	bool generate_mipmap;
 };
@@ -20,12 +20,12 @@ struct oval_transfer_data_to_texture
 struct oval_graphics_transfer_queue
 {
 	oval_graphics_transfer_queue(std::pmr::memory_resource* memory_resource)
-		: memory_resource(memory_resource)
+		: textures(memory_resource), memory_resource(memory_resource)
 	{
 	}
 
 	std::pmr::monotonic_buffer_resource memory_resource;
-	std::queue<oval_transfer_data_to_texture> textures;
+	std::queue<oval_transfer_data_to_texture, std::pmr::deque<oval_transfer_data_to_texture>> textures;
 };
 
 struct FrameData

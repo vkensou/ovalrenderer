@@ -40,7 +40,6 @@ std::pair<ECGPUFormat, int> detectKtxTextureFormat(ktxTexture* ktxTexture)
 
 uint64_t load_texture_ktx(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t queue, HGEGraphics::Texture* texture, const char8_t* filepath, bool mipmap)
 {
-	return 0;
 	ktxResult result = KTX_SUCCESS;
 	ktxTexture* ktxTexture;
 	result = ktxTexture_CreateFromNamedFile((const char*)filepath, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
@@ -86,9 +85,54 @@ uint64_t load_texture_ktx(oval_cgpu_device_t* device, oval_graphics_transfer_que
 
 	HGEGraphics::init_texture(texture, device->device, texture_desc);
 
-	device->wait_upload_texture.push({ texture, 1, nullptr, ktxTexture, generateMipmap, component });
+	uint64_t size = width * height * component;
+	auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
+	for (size_t mipmap = 0; mipmap < mipLevels; ++mipmap)
+	{
+		const uint64_t mipedWidth = mipedSize(width, mipmap);
+		const uint64_t mipedHeight = mipedSize(height, mipmap);
+		size += mipedWidth * mipedHeight * component * arraySize;
+	}
 
-	return 0;
+	uint32_t textureComponent = FormatUtil_BitSizeOfBlock(texture->handle->info->format) / 8;
+	auto data = oval_graphics_transfer_queue_transfer_data_to_texture(queue, size, texture, generateMipmap);
+	{
+		auto offset_data = data;
+		auto ktxTextureData = ktxTexture_GetData(ktxTexture);
+		auto ktxTextureDataSize = ktxTexture_GetDataSize(ktxTexture);
+		for (uint32_t mip = 0; mip < ktxTexture->numLevels; ++mip)
+		{
+			const uint64_t mipedWidth = mipedSize(width, mip);
+			const uint64_t mipedHeight = mipedSize(height, mip);
+			for (size_t slice = 0; slice < ktxTexture->numLayers; ++slice)
+			{
+				for (size_t face = 0; face < ktxTexture->numFaces; ++face)
+				{
+					ktx_size_t ktxTextureMipmapSize = mipedWidth * mipedHeight * component;
+					ktx_size_t ktxTextureMipmapOffset;
+					KTX_error_code result = ktxTexture_GetImageOffset(ktxTexture, mip, slice, face, &ktxTextureMipmapOffset);
+					if (textureComponent == component)
+					{
+						memcpy(data, ktxTextureData + ktxTextureMipmapOffset, ktxTextureMipmapSize);
+					}
+					else
+					{
+						for (size_t i = 0; i < mipedWidth * mipedHeight; ++i)
+						{
+							assert(ktxTextureDataSize >= ktxTextureMipmapOffset + i * component + component);
+							assert(data + size >= offset_data + i * textureComponent + textureComponent);
+							memcpy(offset_data + i * textureComponent, ktxTextureData + ktxTextureMipmapOffset + i * component, component);
+						}
+					}
+					offset_data += mipedWidth * mipedHeight * textureComponent;
+				}
+			}
+		}
+	}
+
+	ktxTexture_Destroy(ktxTexture);
+
+	return size;
 }
 
 uint64_t load_texture_raw(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t queue, HGEGraphics::Texture* texture, const char8_t* filepath, bool mipmap)
@@ -141,7 +185,7 @@ HGEGraphics::Texture* oval_load_texture(oval_device_t* device, const char8_t* fi
 
 	WaitLoadResource resource;
 	resource.type = Texture;
-	size_t path_size = strlen((const char*)filepath);
+	size_t path_size = strlen((const char*)filepath) + 1;
 	char8_t* path = (char8_t*)D->memory_resource->allocate(path_size);
 	memcpy(path, filepath, path_size);
 	resource.textureResource = {
@@ -173,8 +217,6 @@ void oval_load_texture_queue(oval_cgpu_device_t* device)
 				uploaded += load_texture_ktx(device, queue, textureResource.texture, textureResource.path, textureResource.mipmap);
 			else
 				uploaded += load_texture_raw(device, queue, textureResource.texture, textureResource.path, textureResource.mipmap);
-
-
 		}
 	}
 

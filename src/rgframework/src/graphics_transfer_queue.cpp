@@ -24,11 +24,11 @@ void oval_graphics_transfer_queue_transfer_data_to_buffer(oval_graphics_transfer
 	
 }
 
-void* oval_graphics_transfer_queue_transfer_data_to_texture(oval_graphics_transfer_queue_t queue, uint64_t size, HGEGraphics::Texture* texture, bool generate_mipmap)
+uint8_t* oval_graphics_transfer_queue_transfer_data_to_texture(oval_graphics_transfer_queue_t queue, uint64_t size, HGEGraphics::Texture* texture, bool generate_mipmap)
 {
 	assert(size > 0);
 	assert(texture != nullptr);
-	void* data = queue->memory_resource.allocate(size);
+	uint8_t* data = (uint8_t*)queue->memory_resource.allocate(size);
 	assert(data != nullptr);
 	queue->textures.push({ texture, data, size, generate_mipmap });
 	return data;
@@ -38,9 +38,10 @@ void uploadTexture(HGEGraphics::rendergraph_t& rg, std::pmr::vector<HGEGraphics:
 {
 	auto texture_handle = rendergraph_import_texture(&rg, waited.texture);
 
-	for (size_t slice = 0; slice < waited.texture->handle->info->array_size_minus_one + 1; ++slice)
+	auto data = waited.data;
+	for (size_t mipmap = 0; mipmap < (waited.generate_mipmap ? 1 : waited.texture->handle->info->mip_levels); ++mipmap)
 	{
-		for (size_t mipmap = 0; mipmap < (waited.generate_mipmap ? 1 : waited.texture->handle->info->mip_levels); ++mipmap)
+		for (size_t slice = 0; slice < waited.texture->handle->info->array_size_minus_one + 1; ++slice)
 		{
 			auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
 			const uint64_t xBlocksCount = mipedSize(waited.texture->handle->info->width, mipmap) / FormatUtil_WidthOfBlock(waited.texture->handle->info->format);
@@ -48,7 +49,8 @@ void uploadTexture(HGEGraphics::rendergraph_t& rg, std::pmr::vector<HGEGraphics:
 			const uint64_t zBlocksCount = mipedSize(waited.texture->handle->info->depth, mipmap);
 			uint64_t size = xBlocksCount * yBlocksCount * zBlocksCount * FormatUtil_BitSizeOfBlock(waited.texture->handle->info->format) / 8;
 			uint64_t offset = 0;
-			rendergraph_add_uploadtexturepass_ex(&rg, u8"upload texture", texture_handle, mipmap, slice, size, offset, waited.data, [](HGEGraphics::UploadEncoder* encoder, void* passdata) {}, 0, nullptr);
+			rendergraph_add_uploadtexturepass_ex(&rg, u8"upload texture", texture_handle, mipmap, slice, size, offset, data, [](HGEGraphics::UploadEncoder* encoder, void* passdata) {}, 0, nullptr);
+			data += size;
 		}
 	}
 
@@ -108,5 +110,6 @@ void oval_graphics_transfer_queue_execute_all(oval_cgpu_device_t* device)
 		auto queue = device->transfer_queue.front();
 		device->transfer_queue.pop();
 		oval_graphics_transfer_queue_execute(device, queue);
+		device->allocator.delete_object(queue);
 	}
 }
