@@ -440,29 +440,6 @@ void renderImgui(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg, HGE
 	}
 }
 
-void release_uploader_data(oval_cgpu_device_t* device)
-{
-	for (auto loader: device->delay_released_stbi_loader)
-		stbi_image_free(loader);
-	device->delay_released_stbi_loader.clear();
-
-	for (auto loader : device->delay_released_ktxTexture)
-		ktxTexture_Destroy(loader);
-	device->delay_released_ktxTexture.clear();
-
-	for (auto loader : device->delay_released_vertex_buffer)
-		delete loader;
-	device->delay_released_vertex_buffer.clear();
-
-	for (auto loader : device->delay_released_index_buffer)
-		delete loader;
-	device->delay_released_index_buffer.clear();
-
-	for (auto raw_data : device->delay_freeed_raw_data)
-		free(raw_data);
-	device->delay_freeed_raw_data.clear();
-}
-
 void render(oval_cgpu_device_t* device, HGEGraphics::Backbuffer* backbuffer)
 {
 	using namespace HGEGraphics;
@@ -471,7 +448,6 @@ void render(oval_cgpu_device_t* device, HGEGraphics::Backbuffer* backbuffer)
 	rendergraph_t rg{ 1, 1, 1, device->blit_shader, device->blit_linear_sampler, &rg_pool };
 
 	oval_graphics_transfer_queue_execute_all(device, rg);
-	uploadResources(device, rg);
 
 	auto rg_back_buffer = rendergraph_import_backbuffer(&rg, backbuffer);
 
@@ -489,7 +465,6 @@ void render(oval_cgpu_device_t* device, HGEGraphics::Backbuffer* backbuffer)
 	dynamic_mesh_reset(device->imgui_mesh);
 
 	oval_graphics_transfer_queue_release_all(device);
-	release_uploader_data(device);
 }
 
 bool on_resize(oval_cgpu_device_t* D)

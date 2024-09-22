@@ -100,22 +100,9 @@ struct TexturedVertex
 	HMM_Vec2 texCoord;
 };
 
-
-struct WaitUploadMesh
-{
-	HGEGraphics::Mesh* mesh;
-	std::pmr::vector<TexturedVertex>* vertex_data;
-	std::pmr::vector<uint32_t>* index_data;
-	void* vertex_raw_data;
-	void* index_raw_data;
-	uint64_t vertex_data_size;
-	uint64_t index_data_size;
-};
-
 typedef struct oval_cgpu_device_t {
 	oval_cgpu_device_t(const oval_device_t& super, std::pmr::memory_resource* memory_resource)
-		: super(super), memory_resource(memory_resource), wait_upload_mesh(memory_resource), delay_released_stbi_loader(memory_resource), delay_released_ktxTexture(memory_resource)
-		, delay_released_vertex_buffer(memory_resource), delay_released_index_buffer(memory_resource), delay_freeed_raw_data(memory_resource), transfer_queue(memory_resource), allocator(memory_resource), wait_load_resources(memory_resource)
+		: super(super), memory_resource(memory_resource), transfer_queue(memory_resource), allocator(memory_resource), wait_load_resources(memory_resource)
 	{
 	}
 
@@ -151,12 +138,6 @@ typedef struct oval_cgpu_device_t {
 	bool rdc_capture = false;
 	RENDERDOC_API_1_0_0* rdc = nullptr;
 
-	std::queue<WaitUploadMesh, std::pmr::deque<WaitUploadMesh>> wait_upload_mesh;
-	std::pmr::vector<stbi_uc*> delay_released_stbi_loader;
-	std::pmr::vector<ktxTexture*> delay_released_ktxTexture;
-	std::pmr::vector<std::pmr::vector<TexturedVertex>*> delay_released_vertex_buffer;
-	std::pmr::vector<std::pmr::vector<uint32_t>*> delay_released_index_buffer;
-	std::pmr::vector<void*> delay_freeed_raw_data;
 	std::pmr::vector<oval_graphics_transfer_queue*> transfer_queue;
 	std::queue<WaitLoadResource, std::pmr::deque<WaitLoadResource>> wait_load_resources;
 

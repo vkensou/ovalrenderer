@@ -84,7 +84,7 @@ void oval_graphics_transfer_queue_execute(oval_cgpu_device_t* device, HGEGraphic
 	std::pmr::vector<HGEGraphics::texture_handle_t> uploaded_texture_handles(&queue->memory_resource);
 	std::pmr::vector<HGEGraphics::buffer_handle_t> uploaded_buffer_handle(&queue->memory_resource);
 	uploaded_texture_handles.reserve(queue->textures.size());
-	uploaded_buffer_handle.reserve(device->wait_upload_mesh.size() * 2);
+	uploaded_buffer_handle.reserve(queue->buffers.size());
 	for (auto& waited : queue->textures)
 	{
 		uploadTexture(rg, uploaded_texture_handles, waited);

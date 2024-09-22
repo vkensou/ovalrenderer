@@ -28,7 +28,7 @@ HGEGraphics::Mesh* oval_create_mesh_from_buffer(oval_device_t* device, uint32_t 
 		memcpy(index_raw_data, index_data, index_count * mesh->index_stride);
 	}
 
-	D->wait_upload_mesh.push({ mesh, nullptr, nullptr, vertex_raw_data, index_raw_data, mesh->vertices_count * mesh->vertex_stride, mesh->index_count * mesh->index_stride });
+	//D->wait_upload_mesh.push({ mesh, nullptr, nullptr, vertex_raw_data, index_raw_data, mesh->vertices_count * mesh->vertex_stride, mesh->index_count * mesh->index_stride });
 
 	return mesh;
 }
