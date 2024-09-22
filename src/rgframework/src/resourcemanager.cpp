@@ -3,48 +3,10 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-HGEGraphics::Texture* create_texture(oval_device_t* device, const CGPUTextureDescriptor& desc)
+HGEGraphics::Texture* oval_create_texture(oval_device_t* device, const CGPUTextureDescriptor& desc)
 {
 	auto D = (oval_cgpu_device_t*)device;
 	return HGEGraphics::create_texture(D->device, desc);
-}
-
-HGEGraphics::Texture* oval_create_texture_from_buffer(oval_device_t* device, const char8_t* name, uint32_t width, uint32_t height, const unsigned char* data, uint64_t data_size, bool mipmap)
-{
-	auto mipLevels = mipmap ? static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1 : 1;
-	CGPUTextureDescriptor texture_desc =
-	{
-		.name = name,
-		.width = (uint64_t)width,
-		.height = (uint64_t)height,
-		.depth = 1,
-		.array_size = 1,
-		.format = CGPU_FORMAT_R8G8B8A8_UNORM,
-		.mip_levels = mipLevels,
-		.descriptors = CGPUResourceTypes(mipmap ? CGPU_RESOURCE_TYPE_TEXTURE | CGPU_RESOURCE_TYPE_RENDER_TARGET : CGPU_RESOURCE_TYPE_TEXTURE),
-	};
-
-	return oval_create_texture_from_buffer(device, texture_desc, data, data_size);
-}
-
-HGEGraphics::Texture* oval_create_texture_from_buffer(oval_device_t* device, CGPUTextureDescriptor descriptor, const unsigned char* data, uint64_t data_size)
-{
-	auto D = (oval_cgpu_device_t*)device;
-	descriptor.owner_queue = D->gfx_queue;
-	descriptor.start_state = CGPU_RESOURCE_STATE_UNDEFINED;
-	auto texture = HGEGraphics::create_texture(D->device, descriptor);
-	bool mipmap = descriptor.mip_levels > 1;
-
-	if (data && data_size > 0)
-	{
-		stbi_uc* copy_data = (stbi_uc*)stbi__malloc(data_size);
-		memcpy(copy_data, data, data_size);
-
-		auto D = (oval_cgpu_device_t*)device;
-		D->wait_upload_texture.push({ texture, 0, copy_data, nullptr, mipmap });
-	}
-
-	return texture;
 }
 
 void oval_free_texture(oval_device_t* device, HGEGraphics::Texture* texture)

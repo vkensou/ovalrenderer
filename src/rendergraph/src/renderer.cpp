@@ -359,38 +359,42 @@ namespace HGEGraphics
 				};
 				if (res.type == CGPU_RESOURCE_TYPE_TEXTURE)
 				{
+					CGPUTextureViewId textureview = CGPU_NULLPTR;
 					for (auto iter = encoder->context->global_texture_table.rbegin(); iter != encoder->context->global_texture_table.rend(); ++iter)
 					{
 						auto& binder = *iter;
 						if (binder.set == i && binder.bind == res.binding)
 						{
-							CGPUTextureViewId textureview = CGPU_NULLPTR;
 							if (rendergraph_texture_handle_valid(binder.texture_handle))
 								textureview = rendergraph_resolve_texture_view(encoder, binder.texture_handle);
 							else if (binder.texture && binder.texture->prepared)
 								textureview = binder.texture->view;
-							if (!textureview)
-								textureview = encoder->context->default_texture;
-							encoder->textureviews[texture_view_count] = textureview;
-							data.textures = encoder->textureviews + texture_view_count;
-							++texture_view_count;
 							break;
 						}
 					}
+					if (!textureview)
+						textureview = encoder->context->default_texture;
+					encoder->textureviews[texture_view_count] = textureview;
+					data.textures = encoder->textureviews + texture_view_count;
+					++texture_view_count;
 				}
 				else if (res.type == CGPU_RESOURCE_TYPE_SAMPLER)
 				{
+					CGPUSamplerId sampler = CGPU_NULLPTR;
 					for (auto iter = encoder->context->global_sampler_table.rbegin(); iter != encoder->context->global_sampler_table.rend(); ++iter)
 					{
 						auto& binder = *iter;
 						if (binder.set == i && binder.bind == res.binding)
 						{
-							encoder->samplers[sampler_count] = binder.sampler;
-							data.samplers = encoder->samplers + sampler_count;
-							++sampler_count;
+							sampler = binder.sampler;
 							break;
 						}
 					}
+					if (!sampler)
+						;	// TODO
+					encoder->samplers[sampler_count] = sampler;
+					data.samplers = encoder->samplers + sampler_count;
+					++sampler_count;
 				}
 				else if (res.type == CGPU_RESOURCE_TYPE_UNIFORM_BUFFER || res.type == CGPU_RESOURCE_TYPE_RW_BUFFER)
 				{

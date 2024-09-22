@@ -16,7 +16,7 @@ oval_graphics_transfer_queue_t oval_graphics_transfer_queue_alloc(oval_device_t*
 void oval_graphics_transfer_queue_submit(oval_device_t* device, oval_graphics_transfer_queue_t queue)
 {
 	auto D = (oval_cgpu_device_t*)device;
-	D->transfer_queue.push(queue);
+	D->transfer_queue.push_back(queue);
 }
 
 void oval_graphics_transfer_queue_transfer_data_to_buffer(oval_graphics_transfer_queue_t queue, void* data, uint64_t size, HGEGraphics::Buffer* buffer)
@@ -30,7 +30,7 @@ uint8_t* oval_graphics_transfer_queue_transfer_data_to_texture(oval_graphics_tra
 	assert(texture != nullptr);
 	uint8_t* data = (uint8_t*)queue->memory_resource.allocate(size);
 	assert(data != nullptr);
-	queue->textures.push({ texture, data, size, generate_mipmap });
+	queue->textures.emplace_back(texture, data, size, generate_mipmap);
 	return data;
 }
 
@@ -71,10 +71,8 @@ void oval_graphics_transfer_queue_execute(oval_cgpu_device_t* device, HGEGraphic
 	std::pmr::vector<HGEGraphics::buffer_handle_t> uploaded_buffer_handle(&queue->memory_resource);
 	uploaded_texture_handles.reserve(queue->textures.size());
 	//uploaded_buffer_handle.reserve(device->wait_upload_mesh.size() * 2);
-	while (!queue->textures.empty())
+	for (auto& waited : queue->textures)
 	{
-		auto waited = queue->textures.front();
-		queue->textures.pop();
 		uploadTexture(rg, uploaded_texture_handles, waited);
 	}
 
@@ -97,11 +95,22 @@ void oval_graphics_transfer_queue_execute(oval_cgpu_device_t* device, HGEGraphic
 
 void oval_graphics_transfer_queue_execute_all(oval_cgpu_device_t* device, HGEGraphics::rendergraph_t& rg)
 {
-	while (!device->transfer_queue.empty())
+	for (auto& queue : device->transfer_queue)
 	{
-		auto queue = device->transfer_queue.front();
-		device->transfer_queue.pop();
 		oval_graphics_transfer_queue_execute(device, rg, queue);
+	}
+}
+
+void oval_graphics_transfer_queue_release_all(oval_cgpu_device_t* device)
+{
+	for (auto& queue : device->transfer_queue)
+	{
+		for (auto& waited : queue->textures)
+		{
+			queue->memory_resource.deallocate(waited.data, waited.size);
+		}
+		queue->textures.clear();
 		device->allocator.delete_object(queue);
 	}
+	device->transfer_queue.clear();
 }

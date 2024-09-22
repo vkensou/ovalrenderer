@@ -176,14 +176,32 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 
 	device_cgpu->render_finished_semaphore = cgpu_create_semaphore(device_cgpu->device);
 
+	auto init_queue = oval_graphics_transfer_queue_alloc(&device_cgpu->super);
+
 	{
-		uint32_t colors[16];
-		std::fill(colors, colors + 16, 0xffff00ff);
-		device_cgpu->default_texture = oval_create_texture_from_buffer(&device_cgpu->super, u8"default black", 4, 4, (const unsigned char*)colors, sizeof(colors), false);
+		uint64_t width = 4;
+		uint64_t height = 4;
+		uint64_t count = width * height;
+
+		CGPUTextureDescriptor default_texture_desc =
+		{
+			.name = u8"default_texture",
+			.width = width,
+			.height = height,
+			.depth = 1,
+			.array_size = 1,
+			.format = CGPU_FORMAT_R8G8B8A8_UNORM,
+			.mip_levels = 1,
+			.descriptors = CGPU_RESOURCE_TYPE_TEXTURE,
+		};
+		device_cgpu->default_texture = oval_create_texture(&device_cgpu->super, default_texture_desc);
+		auto colors = (uint32_t*)oval_graphics_transfer_queue_transfer_data_to_texture(init_queue, sizeof(uint32_t) * count, device_cgpu->default_texture, false);
+		std::fill(colors, colors + count, 0xffff00ff);
 		for (int i = 0; i < 3; ++i)
 		{
 			device_cgpu->frameDatas[i].execContext.default_texture = device_cgpu->default_texture->view;
 		}
+		device_cgpu->default_texture->prepared = true;
 	}
 
 	IMGUI_CHECKVERSION();
@@ -272,10 +290,33 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 	};
 	device_cgpu->imgui_mesh = HGEGraphics::create_dynamic_mesh(CGPU_PRIM_TOPO_TRI_LIST, imgui_vertex_layout, sizeof(ImDrawIdx));
 
-	unsigned char* fontPixels;
-	int fontTexWidth, fontTexHeight;
-	io.Fonts->GetTexDataAsRGBA32(&fontPixels, &fontTexWidth, &fontTexHeight);
-	device_cgpu->imgui_font_texture = oval_create_texture_from_buffer(&device_cgpu->super, u8"ImGui Default Font Texture", fontTexWidth, fontTexHeight, fontPixels, fontTexWidth * fontTexHeight * 4, false);
+	{
+		unsigned char* fontPixels;
+		int fontTexWidth, fontTexHeight;
+		io.Fonts->GetTexDataAsRGBA32(&fontPixels, &fontTexWidth, &fontTexHeight);
+
+		uint64_t width = fontTexWidth;
+		uint64_t height = fontTexHeight;
+		uint64_t count = width * height;
+
+		CGPUTextureDescriptor imgui_font_texture_desc =
+		{
+			.name = u8"ImGui Default Font Texture",
+			.width = width,
+			.height = height,
+			.depth = 1,
+			.array_size = 1,
+			.format = CGPU_FORMAT_R8G8B8A8_UNORM,
+			.mip_levels = 1,
+			.descriptors = CGPU_RESOURCE_TYPE_TEXTURE,
+		};
+		device_cgpu->imgui_font_texture = oval_create_texture(&device_cgpu->super, imgui_font_texture_desc);
+		auto colors = oval_graphics_transfer_queue_transfer_data_to_texture(init_queue, sizeof(uint32_t) * count, device_cgpu->imgui_font_texture, false);
+		memcpy(colors, fontPixels, sizeof(uint32_t) * count);
+		device_cgpu->imgui_font_texture->prepared = true;
+	}
+
+	oval_graphics_transfer_queue_submit(&device_cgpu->super, init_queue);
 
 	CGPUSamplerDescriptor imgui_font_sampler_desc = {
 		.min_filter = CGPU_FILTER_TYPE_LINEAR,
@@ -447,6 +488,7 @@ void render(oval_cgpu_device_t* device, HGEGraphics::Backbuffer* backbuffer)
 
 	dynamic_mesh_reset(device->imgui_mesh);
 
+	oval_graphics_transfer_queue_release_all(device);
 	release_uploader_data(device);
 }
 
@@ -580,7 +622,6 @@ void oval_runloop(oval_device_t* device)
 		auto prepared_semaphore = D->swapchain_prepared_semaphores[D->current_frame_index];
 
 		oval_load_texture_queue(D);
-		
 
 		render(D, back_buffer);
 
