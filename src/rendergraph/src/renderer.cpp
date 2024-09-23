@@ -120,12 +120,21 @@ namespace HGEGraphics
 		delete shader;
 	}
 
-	Buffer* create_buffer(CGPUDeviceId device, const CGPUBufferDescriptor& desc)
+	Buffer* create_empty_buffer()
 	{
 		auto buffer = new Buffer();
+		buffer->handle = CGPU_NULLPTR;
+		buffer->type = CGPU_RESOURCE_TYPE_NONE;
+		buffer->cur_state = CGPU_RESOURCE_STATE_UNDEFINED;
+		buffer->dynamic_handle = {};
+		return buffer;
+	}
+
+	Buffer* create_buffer(CGPUDeviceId device, const CGPUBufferDescriptor& desc)
+	{
+		auto buffer = create_empty_buffer();
 		buffer->handle = cgpu_create_buffer(device, &desc);
 		buffer->type = (ECGPUResourceType)desc.descriptors;
-		buffer->cur_state = CGPU_RESOURCE_STATE_UNDEFINED;
 		return buffer;
 	}
 
@@ -192,7 +201,7 @@ namespace HGEGraphics
 
 	Mesh* create_dynamic_mesh(ECGPUPrimitiveTopology prim_topology, const CGPUVertexLayout& vertex_layout, uint32_t index_stride)
 	{
-		auto mesh = new Mesh();
+		auto mesh = create_empty_mesh();
 		mesh->vertex_layout = vertex_layout;
 		mesh->prim_topology = prim_topology;
 		mesh->vertices_count = 0;
@@ -202,8 +211,8 @@ namespace HGEGraphics
 			mesh->vertex_stride += vertex_layout.attributes[i].elem_stride;
 		}
 		mesh->index_stride = index_stride;
-		mesh->vertex_buffer = new Buffer();
-		mesh->index_buffer = new Buffer();
+		mesh->vertex_buffer = create_empty_buffer();
+		mesh->index_buffer = create_empty_buffer();
 		mesh->prepared = true;
 		return mesh;
 	}
@@ -255,6 +264,7 @@ namespace HGEGraphics
 		texture->cur_states.clear();
 		texture->states_consistent = false;
 		texture->prepared = false;
+		texture->dynamic_handle = {};
 		return texture;
 	}
 
@@ -312,6 +322,7 @@ namespace HGEGraphics
 		backbuffer->texture.cur_states.resize(1);
 		backbuffer->texture.cur_states[0] = CGPU_RESOURCE_STATE_UNDEFINED;
 		backbuffer->texture.states_consistent = true;
+		backbuffer->texture.dynamic_handle = {};
 	}
 
 	void free_backbuffer(Backbuffer* backbuffer)
