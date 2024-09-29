@@ -1,19 +1,24 @@
 plugins {
     id 'com.android.application'
+    id 'org.tboox.gradle-xmake-plugin' version '1.1.8'
 }
 
 android {
     namespace 'com.vkensou.android'
-    compileSdk 33
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.vkensou.android"
         minSdk 22
-        targetSdk 33
+        targetSdk 34
         versionCode 1
         versionName "1.0"
 
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        externalNativeBuild {
+            xmake {
+                abiFilters "arm64-v8a", "armeabi-v7a"
+            }
+        }
     }
 
     buildTypes {
@@ -25,6 +30,20 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    externalNativeBuild {
+        xmake {
+            logLevel "verbose"
+            path "src/main/cpp/xmake.lua"
+            buildMode "debug"
+            //arguments "--test=y"
+            //program /usr/local/bin/xmake
+            stl "c++_shared"
+            //stdcxx false
+            //ndk "/Users/ruki/files/android-ndk-r20b/"
+            //sdkver 21
+        }
     }
 }
 
