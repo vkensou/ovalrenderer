@@ -4,9 +4,10 @@ set_languages("cxx20", "c11")
 if (is_os("windows")) then 
     add_defines("NOMINMAX")
     set_runtimes(is_mode("debug") and "MDd" or "MD")
+    add_ldflags("-subsystem:console")
 end
 
-add_requires("libsdl 2.30.7", {configs = {sdlmain = true}})
+add_requires("libsdl 2.30.7", {configs = {sdlmain = true, shared = true}})
 add_requires("imgui v1.91.1-docking", {configs = {}})
 
 if is_os("windows") or is_os("linux") or is_os("android")  then
@@ -40,6 +41,9 @@ target("rgframework")
     add_headerfiles("src/rgframework/include/*.h")
     add_files("src/rgframework/src/*.cpp")
     add_files("src/rgframework/src/*.hlsl")
+    if is_plat("windows") then 
+        add_syslinks("Advapi32")
+    end 
 
 target("rgdemo")
     set_kind("binary")

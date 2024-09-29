@@ -286,7 +286,8 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 	passdata->ubo_handle = ubo_handle;
 }
 
-int main()
+extern "C"
+int SDL_main(int argc, char *argv[])
 {
 	const int width = 800;
 	const int height = 600;
