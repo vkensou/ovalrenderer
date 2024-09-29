@@ -3,10 +3,11 @@ add_cxflags("/EHsc")
 set_languages("cxx20", "c11")
 if (is_os("windows")) then 
     add_defines("NOMINMAX")
+    set_runtimes(is_mode("debug") and "MDd" or "MD")
 end
 
-add_requires("libsdl 2.28.5", {configs = {sdlmain = false}})
-add_requires("imgui v1.89.8-docking", {configs = {debug = true}})
+add_requires("libsdl 2.30.7", {configs = {sdlmain = true}})
+add_requires("imgui v1.91.1-docking", {configs = {}})
 
 if is_os("windows") or is_os("linux") or is_os("android")  then
     option("use_vulkan")
