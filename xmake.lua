@@ -1,10 +1,12 @@
 add_rules("mode.debug", "mode.release", "mode.releasedbg")
-add_cxflags("/EHsc")
 set_languages("cxx20", "c11")
-if (is_os("windows")) then 
+if is_os("windows") then 
     add_defines("NOMINMAX")
     set_runtimes(is_mode("debug") and "MDd" or "MD")
+    add_cxflags("/EHsc")
     add_ldflags("-subsystem:console")
+elseif is_os("android") then
+    add_cxflags("-fPIC")
 end
 
 add_requires("libsdl 2.30.7", {configs = {sdlmain = true, shared = true}})

@@ -10,6 +10,9 @@
 #include "tiny_obj_loader.h"
 #include <string.h>
 #include "cgpu_device.h"
+#ifdef __linux__
+#include <unistd.h>
+#endif
 
 void oval_log(void* user_data, ECGPULogSeverity severity, const char* fmt, ...)
 {
@@ -130,7 +133,7 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 
 	uint32_t adapters_count = 0;
 	cgpu_enum_adapters(device_cgpu->instance, CGPU_NULLPTR, &adapters_count);
-	CGPUAdapterId* adapters = (CGPUAdapterId*)alloca(sizeof(CGPUAdapterId) * (adapters_count));
+	CGPUAdapterId* adapters = (CGPUAdapterId*)malloc(sizeof(CGPUAdapterId) * (adapters_count));
 	cgpu_enum_adapters(device_cgpu->instance, adapters, &adapters_count);
 	auto adapter = adapters[0];
 
@@ -146,11 +149,13 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 	device_cgpu->device = cgpu_create_device(adapter, &device_desc);
 	device_cgpu->gfx_queue = cgpu_get_queue(device_cgpu->device, CGPU_QUEUE_TYPE_GRAPHICS, 0);
 	device_cgpu->present_queue = device_cgpu->gfx_queue;
-
+	free(adapters);
 	SDL_SysWMinfo wmInfo;
 	SDL_VERSION(&wmInfo.version);
 	SDL_GetWindowWMInfo(window, &wmInfo);
+#ifdef _WIN32
 	device_cgpu->surface = cgpu_surface_from_native_view(device_cgpu->device, wmInfo.info.win.window);
+#endif
 
 	int w, h;
 	SDL_GetWindowSize(device_cgpu->window, &w, &h);
@@ -522,7 +527,11 @@ void oval_runloop(oval_device_t* device)
 
 	while (quit == false)
 	{
+#ifdef _WIN32
 		_sleep(0);
+#else
+		sleep(0);
+#endif
 
 		while (SDL_PollEvent(&e))
 		{
