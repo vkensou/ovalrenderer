@@ -115,7 +115,7 @@ namespace HGEGraphics
 		pass.writes.push_back(write_edge);
 
 		auto staging_buffer = rendergraph_declare_buffer(self);
-		auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
+		auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max<uint64_t>(size >> mip, 1ull); };
 		const uint64_t xBlocksCount = mipedSize(usedTextureNode->width, mipmap) / FormatUtil_WidthOfBlock(usedTextureNode->format);
 		const uint64_t yBlocksCount = mipedSize(usedTextureNode->height, mipmap) / FormatUtil_HeightOfBlock(usedTextureNode->format);
 		const uint64_t zBlocksCount = mipedSize(usedTextureNode->depth, mipmap);

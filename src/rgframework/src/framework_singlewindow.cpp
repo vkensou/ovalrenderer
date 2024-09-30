@@ -19,6 +19,7 @@ void oval_log(void* user_data, ECGPULogSeverity severity, const char* fmt, ...)
 	va_end(args);
 }
 
+#ifdef _WIN32
 static size_t malloced = 0;
 void* oval_malloc(void* user_data, size_t size, const void* pool)
 {
@@ -76,6 +77,7 @@ void oval_free_aligned(void* user_data, void* ptr, const void* pool)
 	aligned_malloced -= ptr ? _aligned_msize(ptr, 1, 0) : 0;
 	_aligned_free(ptr);
 }
+#endif
 
 oval_device_t* oval_create_device(const oval_device_descriptor* device_descriptor)
 {
@@ -110,6 +112,7 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 		.logger = {
 			.log_callback = oval_log
 		},
+#ifdef _WIN32
 		.allocator = {
 			.malloc_fn = oval_malloc,
 			.realloc_fn = oval_realloc,
@@ -120,13 +123,14 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 			.calloc_aligned_fn = oval_calloc_aligned,
 			.free_aligned_fn = oval_free_aligned,
 		},
+#endif
 	};
 
 	device_cgpu->instance = cgpu_create_instance(&instance_desc);
 
 	uint32_t adapters_count = 0;
 	cgpu_enum_adapters(device_cgpu->instance, CGPU_NULLPTR, &adapters_count);
-	CGPUAdapterId* adapters = (CGPUAdapterId*)_alloca(sizeof(CGPUAdapterId) * (adapters_count));
+	CGPUAdapterId* adapters = (CGPUAdapterId*)alloca(sizeof(CGPUAdapterId) * (adapters_count));
 	cgpu_enum_adapters(device_cgpu->instance, adapters, &adapters_count);
 	auto adapter = adapters[0];
 

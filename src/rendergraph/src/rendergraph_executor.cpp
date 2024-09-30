@@ -218,7 +218,7 @@ namespace HGEGraphics
 				fbDesc.attachments[pass.colorAttachmentCount] = textureView->handle;
 			}
 
-			auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
+			auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max<uint64_t>(size >> mip, 1ull); };
 			fbDesc.width = mipedSize(fbDesc.attachments[0]->info.texture->info->width, fbDesc.attachments[0]->info.base_mip_level);
 			fbDesc.height = mipedSize(fbDesc.attachments[0]->info.texture->info->height, fbDesc.attachments[0]->info.base_mip_level);
 			fbDesc.layers = 1;

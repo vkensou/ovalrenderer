@@ -85,7 +85,7 @@ uint64_t load_texture_ktx(oval_cgpu_device_t* device, oval_graphics_transfer_que
 
 	HGEGraphics::init_texture(texture, device->device, texture_desc);
 
-	auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
+	auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max<uint64_t>(size >> mip, 1ull); };
 	uint64_t size = 0;
 	uint32_t textureComponent = FormatUtil_BitSizeOfBlock(texture->handle->info->format) / 8;
 	auto data = oval_graphics_transfer_queue_transfer_data_to_texture_full(queue, texture, generateMipmap, ktxTexture->numLevels, &size);
