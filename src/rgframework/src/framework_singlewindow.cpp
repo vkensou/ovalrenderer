@@ -71,9 +71,9 @@ void* oval_calloc_aligned(void* user_data, size_t count, size_t size, size_t ali
 	return memory;
 }
 
-void oval_free_aligned(void* user_data, void* ptr, size_t alignment, const void* pool)
+void oval_free_aligned(void* user_data, void* ptr, const void* pool)
 {
-	aligned_malloced -= ptr ? _aligned_msize(ptr, alignment, 0) : 0;
+	aligned_malloced -= ptr ? _aligned_msize(ptr, 1, 0) : 0;
 	_aligned_free(ptr);
 }
 
