@@ -210,9 +210,6 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 		device_cgpu->swapchain_prepared_semaphores[i] = cgpu_create_semaphore(device_cgpu->device);
 	}
 
-	for (size_t i = 0; i < device_cgpu->swapchain->buffer_count; ++i)
-		device_cgpu->frameDatas.emplace_back(device_cgpu->device, device_cgpu->gfx_queue, device_descriptor->enable_profile, device_cgpu->memory_resource);
-
 	device_cgpu->render_finished_semaphore = cgpu_create_semaphore(device_cgpu->device);
 
 	{
@@ -234,10 +231,12 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 		uint32_t colors[count];
 		std::fill(colors, colors + count, 0xffff00ff);
 		device_cgpu->default_texture = oval_create_texture_from_buffer(&device_cgpu->super, default_texture_desc, colors, sizeof(colors));
-		for (int i = 0; i < 3; ++i)
-		{
-			device_cgpu->frameDatas[i].execContext.default_texture = device_cgpu->default_texture->view;
-		}
+	}
+
+	for (uint32_t i = 0; i < 3; ++i)
+	{
+		device_cgpu->frameDatas.emplace_back(device_cgpu->device, device_cgpu->gfx_queue, device_cgpu->super.descriptor.enable_profile, device_cgpu->memory_resource);
+		device_cgpu->frameDatas[i].execContext.default_texture = device_cgpu->default_texture->view;
 	}
 
 	IMGUI_CHECKVERSION();
@@ -677,7 +676,7 @@ void oval_runloop(oval_device_t* device)
 		};
 		cgpu_queue_present(D->present_queue, &present_desc);
 
-		D->current_frame_index = (D->current_frame_index + 1) % D->swapchain->buffer_count;
+		D->current_frame_index = (D->current_frame_index + 1) % D->frameDatas.size();
 
 		if (rdc_capturing)
 		{
@@ -759,7 +758,7 @@ void oval_free_device(oval_device_t* device)
 	D->info.reset();
 	D->current_frame_index = -1;
 
-	for (int i = 0; i < 3; ++i)
+	for (int i = 0; i < D->frameDatas.size(); ++i)
 	{
 		D->frameDatas[i].free();
 	}
