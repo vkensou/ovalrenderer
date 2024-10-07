@@ -84,10 +84,10 @@ void oval_free_aligned(void* user_data, void* ptr, const void* pool)
 
 oval_device_t* oval_create_device(const oval_device_descriptor* device_descriptor)
 {
-	if (SDL_Init(SDL_INIT_VIDEO) < 0)
+	if (SDL_Init(0) < 0)
 		return nullptr;
 
-	SDL_Window* window = SDL_CreateWindow("oval", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, device_descriptor->width, device_descriptor->height, SDL_WINDOW_SHOWN | SDL_WINDOW_VULKAN);
+	SDL_Window* window = SDL_CreateWindow("oval", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, device_descriptor->width, device_descriptor->height, SDL_WINDOW_SHOWN);
 	if (window == nullptr)
 	{
 		SDL_Quit();
