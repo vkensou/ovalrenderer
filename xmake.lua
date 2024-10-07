@@ -1,18 +1,20 @@
 add_rules("mode.debug", "mode.release", "mode.releasedbg")
 set_languages("cxx20", "c11")
-if is_os("windows") then 
+if is_plat("windows") then 
     add_defines("NOMINMAX")
     set_runtimes(is_mode("debug") and "MDd" or "MD")
     add_cxflags("/EHsc")
     add_ldflags("-subsystem:console")
-elseif is_os("android") then
+elseif is_plat("android") then
     add_cxflags("-fPIC")
+    includes("androidcpp-sdl")
+    set_runtimes("c++_static")
 end
 
 add_requires("libsdl 2.30.7", {configs = {sdlmain = true, shared = true}})
 add_requires("imgui v1.91.1-docking", {configs = {}})
 
-if is_os("windows") or is_os("linux") or is_os("android")  then
+if is_plat("windows", "linux", "android") then
     option("use_vulkan")
         set_showmenu(true )
         set_default(true)
@@ -48,7 +50,13 @@ target("rgframework")
     end 
 
 target("rgdemo")
-    set_kind("binary")
+    if is_plat("windows") then
+        set_kind("binary")
+        add_ldflags("/subsystem:console")
+    else 
+        set_kind("shared")
+        add_rules("androidcpp-sdl", {android_sdk_version = "34", android_manifest = "AndroidManifest.xml", android_res = "res", android_assets = "assets", apk_output_path = "."})
+    end
     set_rundir("$(projectdir)")
     add_deps("rgframework")
     add_files("src/rgdemo/*.cpp")
