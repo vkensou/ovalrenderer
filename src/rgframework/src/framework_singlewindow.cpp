@@ -104,6 +104,7 @@ void oval_free_aligned(void* user_data, void* ptr, const void* pool)
 
 oval_device_t* oval_create_device(const oval_device_descriptor* device_descriptor)
 {
+	SDL_SetHint(SDL_HINT_VIDEO_EXTERNAL_CONTEXT, "1");
 	if (SDL_Init(0) < 0)
 		return nullptr;
 
