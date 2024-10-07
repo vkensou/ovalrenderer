@@ -13,12 +13,32 @@
 #ifdef __linux__
 #include <unistd.h>
 #endif
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
 
 void oval_log(void* user_data, ECGPULogSeverity severity, const char* fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
+#ifdef __ANDROID__
+	android_LogPriority priority = ANDROID_LOG_UNKNOWN;
+	if (severity == CGPU_LOG_TRACE)
+		priority = ANDROID_LOG_VERBOSE;
+	else if (severity == CGPU_LOG_DEBUG)
+		priority = ANDROID_LOG_DEBUG;
+	else if (severity == CGPU_LOG_INFO)
+		priority = ANDROID_LOG_INFO;
+	else if (severity == CGPU_LOG_WARNING)
+		priority = ANDROID_LOG_WARN;
+	else if (severity == CGPU_LOG_ERROR)
+		priority = ANDROID_LOG_ERROR;
+	else if (severity == CGPU_LOG_FATAL)
+		priority = ANDROID_LOG_FATAL;
+	__android_log_print(priority, "oval", fmt, args);
+#else
 	vprintf(fmt, args);
+#endif
 	va_end(args);
 }
 
@@ -153,9 +173,14 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 	SDL_SysWMinfo wmInfo;
 	SDL_VERSION(&wmInfo.version);
 	SDL_GetWindowWMInfo(window, &wmInfo);
+	void* native_view = nullptr;
 #ifdef _WIN32
-	device_cgpu->surface = cgpu_surface_from_native_view(device_cgpu->device, wmInfo.info.win.window);
+	native_view = wmInfo.info.win.window;
+#elif defined(__ANDROID__)
+	native_view = wmInfo.info.android.window;
 #endif
+
+	device_cgpu->surface = cgpu_surface_from_native_view(device_cgpu->device, native_view);
 
 	int w, h;
 	SDL_GetWindowSize(device_cgpu->window, &w, &h);
