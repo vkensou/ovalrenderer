@@ -1,7 +1,3 @@
-if is_host("windows") and is_plat("android") then
-    set_policy("install.strip_packagelibs", false)
-end
-
 rule("androidcpp-sdl")
     if is_plat("android") then 
         after_install(function (target)

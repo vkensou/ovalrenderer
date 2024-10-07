@@ -11,6 +11,10 @@ elseif is_plat("android") then
     set_runtimes("c++_static")
 end
 
+if is_host("windows") and is_plat("android") then
+    set_policy("install.strip_packagelibs", false)
+end
+
 add_requires("libsdl 2.30.7", {configs = {sdlmain = true, shared = true}})
 add_requires("imgui v1.91.1-docking", {configs = {}})
 
@@ -59,6 +63,7 @@ target("rgdemo")
     end
     set_rundir("$(projectdir)")
     add_deps("rgframework")
+    add_packages("libsdl")
     add_files("src/rgdemo/*.cpp")
 
 target("animation")
