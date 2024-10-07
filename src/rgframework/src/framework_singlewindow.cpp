@@ -128,11 +128,15 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 			device_cgpu->rdc = GetRenderDocApi();
 	}
 
+	bool validation = true;
+#ifdef __ANDROID__
+	validation = false;
+#endif
 	CGPUInstanceDescriptor instance_desc = {
 		.backend = CGPU_BACKEND_VULKAN,
-		.enable_debug_layer = true,
-		.enable_gpu_based_validation = true,
-		.enable_set_name = true,
+		.enable_debug_layer = validation,
+		.enable_gpu_based_validation = validation,
+		.enable_set_name = validation,
 		.logger = {
 			.log_callback = oval_log
 		},
