@@ -121,8 +121,8 @@ typedef struct oval_cgpu_device_t {
 
 	CGPUSurfaceId surface;
 	CGPUSwapChainId swapchain;
-	HGEGraphics::Backbuffer backbuffer[3];
-	CGPUSemaphoreId swapchain_prepared_semaphores[3];
+	std::vector<HGEGraphics::Backbuffer> backbuffer;
+	std::vector<CGPUSemaphoreId> swapchain_prepared_semaphores;
 
 	std::vector<FrameData> frameDatas;
 	CGPUSemaphoreId render_finished_semaphore;
