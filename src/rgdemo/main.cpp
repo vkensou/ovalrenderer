@@ -31,8 +31,8 @@ void _init(Application& app)
 	CGPURasterizerStateDescriptor rasterizer_state = {
 		.cull_mode = CGPU_CULL_MODE_NONE,
 	};
-	app.shader = HGEGraphics::create_shader(app.device->device, "shaders/hello.vert.spv", "shaders/hello.frag.spv", blend_desc, depth_desc, rasterizer_state);
-	app.light_shader = HGEGraphics::create_shader(app.device->device, "shaders/light.vert.spv", "shaders/light.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.shader = oval_create_shader(app.device, "shaders/hello.vert.spv", "shaders/hello.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.light_shader = oval_create_shader(app.device, "shaders/light.vert.spv", "shaders/light.frag.spv", blend_desc, depth_desc, rasterizer_state);
 
 	CGPUSamplerDescriptor gbuffer_sampler_desc = {
 		.min_filter = CGPU_FILTER_TYPE_LINEAR,
@@ -44,18 +44,18 @@ void _init(Application& app)
 		.mip_lod_bias = 0,
 		.max_anisotropy = 1,
 	};
-	app.gbuffer_sampler = cgpu_create_sampler(app.device->device, &gbuffer_sampler_desc);
+	app.gbuffer_sampler = oval_create_sampler(app.device, &gbuffer_sampler_desc);
 }
 
 void _free(Application& app)
 {
-	free_shader(app.shader);
+	oval_free_shader(app.device, app.shader);
 	app.shader = nullptr;
 
-	free_shader(app.light_shader);
+	oval_free_shader(app.device, app.light_shader);
 	app.light_shader = nullptr;
 
-	cgpu_free_sampler(app.gbuffer_sampler);
+	oval_free_sampler(app.device, app.gbuffer_sampler);
 	app.gbuffer_sampler = nullptr;
 }
 
