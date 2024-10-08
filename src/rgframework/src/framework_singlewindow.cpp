@@ -575,7 +575,15 @@ void oval_runloop(oval_device_t* device)
 	bool requestResize = false;
 
 	D->current_frame_index = 0;
-	clock_t lastTime = clock();
+#ifdef _WIN32
+	LARGE_INTEGER frequency;
+	LARGE_INTEGER lastTime;
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&lastTime);
+#else
+    struct timespec lastTime;
+    clock_gettime(CLOCK_MONOTONIC, &lastTime);
+#endif
 
 	while (quit == false)
 	{
@@ -639,8 +647,15 @@ void oval_runloop(oval_device_t* device)
 			continue;
 		}
 
-		clock_t currentTime = clock();
-		double elapsedTime = (double)(currentTime - lastTime) / CLOCKS_PER_SEC;
+#ifdef _WIN32
+		LARGE_INTEGER currentTime;
+		QueryPerformanceCounter(&currentTime);
+		double elapsedTime = (double)(currentTime.QuadPart - lastTime.QuadPart) / frequency.QuadPart;
+#else
+		struct timespec currentTime;
+		clock_gettime(CLOCK_MONOTONIC, &currentTime);
+		double elapsedTime = (currentTime.tv_sec - lastTime.tv_sec) + (currentTime.tv_nsec - lastTime.tv_nsec) / 1e9;
+#endif
 		lastTime = currentTime;
 		D->super.deltaTime = elapsedTime;
 
