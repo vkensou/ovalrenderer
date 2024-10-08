@@ -4,14 +4,15 @@
 	android:versionCode="15"
     android:versionName="1.5">
 	
-	<uses-sdk android:minSdkVersion="21" android:targetSdkVersion="30" />
+	<uses-sdk android:minSdkVersion="22" android:targetSdkVersion="34" />
 	
 	<uses-permission android:name="android.permission.SET_RELEASE_APP"/>
 
     <application android:label="xmake-androidcpp" android:debuggable="true" android:hasCode="true" tools:replace="android:icon,android:theme,android:allowBackup,label" android:icon="@mipmap/icon">
         <activity android:name="org.libsdl.app.SDLActivity"
                   android:label="xmake-androidcpp"
-                  android:configChanges="orientation|keyboardHidden">
+                  android:configChanges="orientation|keyboardHidden"
+                  android:exported="true">
             <meta-data android:name="android.app.lib_name"
                        android:value="main" />
             <intent-filter>
