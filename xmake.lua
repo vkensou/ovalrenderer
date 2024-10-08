@@ -53,43 +53,53 @@ target("rgframework")
         add_syslinks("Advapi32")
     end 
 
+rule("example_base")
+    after_load(function(target)
+        target:set("group", "examples")
+        if is_plat("android") then
+            target:set("kind", "shared")
+        else 
+            target:set("kind", "binary")
+            if is_plat("windows") then
+                target:add("ldflags", "/subsystem:console")
+            end
+        end
+        target:set("rundir", "$(projectdir)")
+        target:add("deps", "rgframework")
+        target:add("packages", "libsdl")
+    end)
+
 target("rgdemo")
-    if is_plat("windows") then
-        set_kind("binary")
-        add_ldflags("/subsystem:console")
-    else 
-        set_kind("shared")
+    add_rules("example_base")
+    if is_plat("android") then
         add_rules("androidcpp", {android_sdk_version = "34", android_manifest = "AndroidManifest.xml", android_res = "res", android_assets = "assets", attachedjar = path.join("androidsdl", "libsdl-2.30.7.jar"), apk_output_path = ".", package_name = "com.xmake.androidcpp", activity_name = "org.libsdl.app.SDLActivity"})
     end
-    set_rundir("$(projectdir)")
-    add_deps("rgframework")
-    add_packages("libsdl")
     add_files("src/rgdemo/*.cpp")
 
 target("animation")
-    set_group("examples")
-    set_kind("binary")
-    set_rundir("$(projectdir)/examples")
-    add_deps("rgframework")
+    add_rules("example_base")
+    if is_plat("android") then
+        add_rules("androidcpp", {android_sdk_version = "34", android_manifest = "AndroidManifest.xml", android_res = "res", android_assets = "assets", attachedjar = path.join("androidsdl", "libsdl-2.30.7.jar"), apk_output_path = ".", package_name = "com.xmake.androidcpp", activity_name = "org.libsdl.app.SDLActivity"})
+    end
     add_files("examples/animation/*.cpp")
 
 target("hdr")
-    set_group("examples")
-    set_kind("binary")
-    set_rundir("$(projectdir)/examples")
-    add_deps("rgframework")
+    add_rules("example_base")
+    if is_plat("android") then
+        add_rules("androidcpp", {android_sdk_version = "34", android_manifest = "AndroidManifest.xml", android_res = "res", android_assets = "assets", attachedjar = path.join("androidsdl", "libsdl-2.30.7.jar"), apk_output_path = ".", package_name = "com.xmake.androidcpp", activity_name = "org.libsdl.app.SDLActivity"})
+    end
     add_files("examples/hdr/*.cpp")
 
 target("texture3d")
-    set_group("examples")
-    set_kind("binary")
-    set_rundir("$(projectdir)/examples")
-    add_deps("rgframework")
+    add_rules("example_base")
+    if is_plat("android") then
+        add_rules("androidcpp", {android_sdk_version = "34", android_manifest = "AndroidManifest.xml", android_res = "res", android_assets = "assets", attachedjar = path.join("androidsdl", "libsdl-2.30.7.jar"), apk_output_path = ".", package_name = "com.xmake.androidcpp", activity_name = "org.libsdl.app.SDLActivity"})
+    end
     add_files("examples/texture3d/*.cpp")
 
 target("computeparticle")
-    set_group("examples")
-    set_kind("binary")
-    set_rundir("$(projectdir)/examples")
-    add_deps("rgframework")
+    add_rules("example_base")
+    if is_plat("android") then
+        add_rules("androidcpp", {android_sdk_version = "34", android_manifest = "AndroidManifest.xml", android_res = "res", android_assets = "assets", attachedjar = path.join("androidsdl", "libsdl-2.30.7.jar"), apk_output_path = ".", package_name = "com.xmake.androidcpp", activity_name = "org.libsdl.app.SDLActivity"})
+    end
     add_files("examples/computeparticle/*.cpp")
