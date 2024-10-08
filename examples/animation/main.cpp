@@ -77,7 +77,7 @@ void _init_resource(Application& app)
 	CGPURasterizerStateDescriptor rasterizer_state = {
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
-	app.shader = oval_create_shader(app.device, "animation/object.vert.spv", "animation/object.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.shader = oval_create_shader(app.device, "shaderbin/object.vert.spv", "shaderbin/object.frag.spv", blend_desc, depth_desc, rasterizer_state);
 
 	CGPUSamplerDescriptor texture_sampler_desc = {
 		.min_filter = CGPU_FILTER_TYPE_LINEAR,

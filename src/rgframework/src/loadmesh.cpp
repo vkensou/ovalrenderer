@@ -12,7 +12,8 @@ std::tuple<std::pmr::vector<TexturedVertex>*, std::pmr::vector<uint32_t>*> LoadO
 
 	std::pmr::vector<TexturedVertex>* vertices;
 	std::pmr::vector<uint32_t>* indices;
-	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, (const char*)filename))
+	std::u8string finalpath = std::u8string(u8"assets/") + filename;
+	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, (const char*)finalpath.c_str()))
 	{
 		return { vertices, indices };
 	}

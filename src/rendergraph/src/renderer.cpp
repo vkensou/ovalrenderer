@@ -7,9 +7,10 @@
 
 namespace HGEGraphics
 {
+#ifdef _WIN32
 	std::vector<char> readFile(const std::string& filename)
 	{
-		std::ifstream file(filename, std::ios::ate | std::ios::binary);
+		std::ifstream file("assets/" + filename, std::ios::ate | std::ios::binary);
 
 		if (!file.is_open())
 		{
@@ -25,6 +26,7 @@ namespace HGEGraphics
 		file.close();
 		return buffer;
 	}
+#endif
 
 	Shader* create_shader(CGPUDeviceId device, const std::string& vertPath, const std::string& fragPath, const CGPUBlendStateDescriptor& blend_desc, const CGPUDepthStateDesc& depth_desc, const CGPURasterizerStateDescriptor& rasterizer_state)
 	{
