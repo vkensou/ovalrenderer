@@ -24,6 +24,8 @@ typedef struct oval_device_descriptor
 typedef struct oval_device_t {
     const oval_device_descriptor descriptor;
     float deltaTime;
+    uint16_t width;
+    uint16_t height;
 } oval_device_t;
 
 typedef struct oval_graphics_transfer_queue* oval_graphics_transfer_queue_t;

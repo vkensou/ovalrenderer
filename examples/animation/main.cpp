@@ -151,7 +151,7 @@ void _init_world(Application& app)
 	auto forward = HMM_M4GetForward(cameraMat);
 	auto viewMat = HMM_LookAt2_LH(eye, forward, HMM_V3_Up);
 
-	float aspect = 800.f / 600.f;
+	float aspect = (float)app.device->width / app.device->height;
 	float winSize = 6;
 	float near = 0.1f;
 	float far = 100;

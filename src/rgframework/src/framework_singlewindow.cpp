@@ -119,8 +119,13 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 		return nullptr;
 	}
 
+	int w, h;
+	SDL_GetWindowSize(window, &w, &h);
+
 	auto memory_resource = new std::pmr::unsynchronized_pool_resource();
 	oval_device_t super = { .descriptor = *device_descriptor, .deltaTime = 0 };
+	super.width = w;
+	super.height = h;
 
 	auto device_cgpu = new oval_cgpu_device_t(super, memory_resource);
 	device_cgpu->window = window;
@@ -190,9 +195,6 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 #endif
 
 	device_cgpu->surface = cgpu_surface_from_native_view(device_cgpu->device, native_view);
-
-	int w, h;
-	SDL_GetWindowSize(device_cgpu->window, &w, &h);
 
 	ECGPUFormat swapchainFormat = CGPU_FORMAT_R8G8B8A8_SRGB;
 	CGPUSwapChainDescriptor descriptor = {
@@ -528,6 +530,9 @@ bool on_resize(oval_cgpu_device_t* D)
 
 	if (w == 0 || h == 0)
 		return false;
+
+	D->super.width = w;
+	D->super.height = h;
 
 	ECGPUFormat swapchainFormat = CGPU_FORMAT_R8G8B8A8_SRGB;
 	CGPUSwapChainDescriptor descriptor = {

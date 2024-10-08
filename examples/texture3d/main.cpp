@@ -191,7 +191,7 @@ void _init_resource(Application& app)
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
 
-	app.texture3d = oval_create_shader(app.device, "texture3d/texture3d.vert.spv", "texture3d/texture3d.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.texture3d = oval_create_shader(app.device, "shaderbin/texture3d.vert.spv", "shaderbin/texture3d.frag.spv", blend_desc, depth_desc, rasterizer_state);
 
 	CGPUSamplerDescriptor cubemap_sampler_desc = {
 		.min_filter = CGPU_FILTER_TYPE_LINEAR,
@@ -248,7 +248,7 @@ void on_update(oval_device_t* device)
 	auto forward = HMM_M4GetForward(cameraMat);
 	auto viewMat = HMM_LookAt2_LH(eye, forward, HMM_V3_Up);
 
-	float aspect = (float)app->device->descriptor.width / app->device->descriptor.height;
+	float aspect = (float)device->width / device->height;
 	float near = 0.1f;
 	float far = 256;
 	float fov = 60;

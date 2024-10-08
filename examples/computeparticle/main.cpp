@@ -65,8 +65,8 @@ void _init_resource(Application& app)
 	CGPURasterizerStateDescriptor rasterizer_state = {
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
-	app.particle = oval_create_shader(app.device, "computeparticle/particle.vert.spv", "computeparticle/particle.frag.spv", blend_desc, depth_desc, rasterizer_state);
-	app.particle_updater = oval_create_compute_shader(app.device, "computeparticle/particle_update.comp.spv");
+	app.particle = oval_create_shader(app.device, "shaderbin/particle.vert.spv", "shaderbin/particle.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.particle_updater = oval_create_compute_shader(app.device, "shaderbin/particle_update.comp.spv");
 
 	app.colormap = oval_load_texture(app.device, u8"media/textures/particle01_rgba.ktx", false);
 	app.gradientmap = oval_load_texture(app.device, u8"media/textures/particle_gradient_rgba.ktx", false);
@@ -153,7 +153,7 @@ void on_update(oval_device_t* device)
 	auto forward = HMM_M4GetForward(cameraMat);
 	auto viewMat = HMM_LookAt2_LH(eye, forward, HMM_V3_Up);
 
-	float aspect = (float)app->device->descriptor.width / app->device->descriptor.height;
+	float aspect = (float)device->width / device->height;
 	float near = 0.1f;
 	float far = 256;
 	float fov = 60;
