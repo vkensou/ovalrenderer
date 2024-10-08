@@ -1,4 +1,4 @@
-function main(target, android_sdk_version, android_manifest, android_res, android_assets, keystore, keystore_pass, apk_output_path)
+function main(target, android_sdk_version, android_manifest, android_res, android_assets, attachedjar, keystore, keystore_pass, apk_output_path)
     local outputpath = path.join("build", "android", "output")
     if os.exists(outputpath) then
         os.rmdir(outputpath)
@@ -11,9 +11,6 @@ function main(target, android_sdk_version, android_manifest, android_res, androi
     os.mkdir(libarchpath)
     os.cp(path.join(target:installdir(), "lib", "*.so"), libarchpath)
     os.mv(path.join(libarchpath, target:filename()), path.join(libarchpath, "libmain.so"))
-    os.cp(path.join("androidcpp-sdl", "libsdl-2.30.7.dex"), outputtemppath)
-    local classesdex = path.join(outputtemppath, "classes.dex")
-    os.mv(path.join(outputtemppath, "libsdl-2.30.7.dex"), classesdex)
 
     import("core.tool.toolchain")
 
@@ -28,6 +25,24 @@ function main(target, android_sdk_version, android_manifest, android_res, androi
     -- get android build-tools version
     local android_build_toolver = assert(toolchain_ndk:config("build_toolver"), "please run `xmake f --build_toolver=xxx` to set the android build-tools version!")
 
+    local dexpath = path.join(outputpath, "dex")
+    os.mkdir(dexpath)
+
+    local androidjar = path.join(android_sdkdir, "platforms", string.format("android-%s", android_sdk_version), "android.jar")
+
+    local d8 = path.join(android_sdkdir, "build-tools", android_build_toolver, "d8" .. (is_host("windows") and ".bat" or ""))
+
+    local d8_argv = {
+        attachedjar,
+        "--lib", androidjar,
+        "--output", dexpath,
+    }
+    print("compiling java...")
+    os.vrunv(d8, d8_argv)
+
+    local classesdex = path.join(outputtemppath, "classes.dex")
+    os.mv(path.join(dexpath, "classes.dex"), classesdex)
+
     local aapt = path.join(android_sdkdir, "build-tools", android_build_toolver, "aapt" .. (is_host("windows") and ".exe" or ""))
 
     local resonly_apk = path.join(outputtemppath, "res_only.zip")
@@ -35,7 +50,7 @@ function main(target, android_sdk_version, android_manifest, android_res, androi
         "-M", android_manifest,
         "-S", android_res,
         "-A", android_assets,
-        "-I", path.join(android_sdkdir, "platforms", string.format("android-%s", android_sdk_version), "android.jar"),
+        "-I", androidjar,
         "-F", resonly_apk
     }
 

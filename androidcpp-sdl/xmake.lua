@@ -8,12 +8,13 @@ rule("androidcpp-sdl")
             local keystore = target:extraconf("rules", "androidcpp-sdl", "keystore") or path.join("androidcpp-sdl", "xmake-debug.jks")
             local keystore_pass = target:extraconf("rules", "androidcpp-sdl", "keystore_pass") or "123456"
             local apk_output_path = target:extraconf("rules", "androidcpp-sdl", "apk_output_path") or "."
+            local attachedjar = path.join("androidcpp-sdl", "libsdl-2.30.7.jar")
 
             assert(android_sdk_version, "android sdk version not set")
             assert(android_manifest, "android manifest not set")
             assert(android_res, "android res not set")
             assert(android_assets, "android assets not set")
 
-            import("android_build")(target, android_sdk_version, android_manifest, android_res, android_assets, keystore, keystore_pass, apk_output_path)
+            import("android_build")(target, android_sdk_version, android_manifest, android_res, android_assets, attachedjar, keystore, keystore_pass, apk_output_path)
         end)
     end 
