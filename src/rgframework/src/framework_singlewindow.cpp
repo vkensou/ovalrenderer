@@ -108,7 +108,11 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 	if (SDL_Init(0) < 0)
 		return nullptr;
 
-	SDL_Window* window = SDL_CreateWindow("oval", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, device_descriptor->width, device_descriptor->height, SDL_WINDOW_SHOWN);
+	uint32_t windowFlag = SDL_WINDOW_SHOWN;
+#ifdef __ANDROID__
+	windowFlag |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+#endif
+	SDL_Window* window = SDL_CreateWindow("oval", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, device_descriptor->width, device_descriptor->height, windowFlag);
 	if (window == nullptr)
 	{
 		SDL_Quit();
