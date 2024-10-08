@@ -17,4 +17,15 @@ rule("androidcpp-sdl")
 
             import("android_build")(target, android_sdk_version, android_manifest, android_res, android_assets, attachedjar, keystore, keystore_pass, apk_output_path)
         end)
+
+        on_run(function (target)
+            local apk_output_path = target:extraconf("rules", "androidcpp-sdl", "apk_output_path") or "."
+            local package_name = target:extraconf("rules", "androidcpp-sdl", "package_name")
+            local activity_name = target:extraconf("rules", "androidcpp-sdl", "activity_name")
+
+            assert(package_name, "package name not set")
+            assert(activity_name, "activity name not set")
+
+            import("android_run")(target, apk_output_path, package_name, activity_name)
+        end)
     end 

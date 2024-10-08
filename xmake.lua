@@ -59,7 +59,7 @@ target("rgdemo")
         add_ldflags("/subsystem:console")
     else 
         set_kind("shared")
-        add_rules("androidcpp-sdl", {android_sdk_version = "34", android_manifest = "AndroidManifest.xml", android_res = "res", android_assets = "assets", apk_output_path = "."})
+        add_rules("androidcpp-sdl", {android_sdk_version = "34", android_manifest = "AndroidManifest.xml", android_res = "res", android_assets = "assets", apk_output_path = ".", package_name = "com.xmake.androidcpp", activity_name = "org.libsdl.app.SDLActivity"})
     end
     set_rundir("$(projectdir)")
     add_deps("rgframework")
