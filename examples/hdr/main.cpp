@@ -64,9 +64,9 @@ void _init_resource(Application& app)
 	CGPURasterizerStateDescriptor rasterizer_state = {
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
-	app.skybox_shader = oval_create_shader(app.device, "hdr/skybox.vert.spv", "hdr/skybox.frag.spv", blend_desc, depth_desc, rasterizer_state);
-	app.unlit_shader = oval_create_shader(app.device, "hdr/unlit.vert.spv", "hdr/unlit.frag.spv", blend_desc, depth_desc, rasterizer_state);
-	app.hdr_shader = oval_create_shader(app.device, "hdr/hdr.vert.spv", "hdr/hdr.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.skybox_shader = oval_create_shader(app.device, "shaderbin/skybox.vert.spv", "shaderbin/skybox.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.unlit_shader = oval_create_shader(app.device, "shaderbin/unlit.vert.spv", "shaderbin/unlit.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.hdr_shader = oval_create_shader(app.device, "shaderbin/hdr.vert.spv", "shaderbin/hdr.frag.spv", blend_desc, depth_desc, rasterizer_state);
 
 	app.cubemap = oval_load_texture(app.device, u8"media/textures/uffizi_cube.ktx", true);
 	app.colormap = oval_load_texture(app.device, u8"media/textures/TilesGray512.ktx", true);
@@ -139,7 +139,7 @@ void on_update(oval_device_t* device)
 	auto forward = HMM_M4GetForward(cameraMat);
 	auto viewMat = HMM_LookAt2_LH(eye, forward, HMM_V3_Up);
 
-	float aspect = (float)app->device->descriptor.width / app->device->descriptor.height;
+	float aspect = (float)device->width / device->height;
 	float near = 0.1f;
 	float far = 256;
 	float fov = 60;
@@ -232,7 +232,8 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 	passdata->hdr_ubo_handle = hdr_ubo_handle;
 }
 
-int main()
+extern "C"
+int SDL_main(int argc, char *argv[])
 {
 	const int width = 800;
 	const int height = 600;

@@ -10,15 +10,39 @@
 #include "tiny_obj_loader.h"
 #include <string.h>
 #include "cgpu_device.h"
+#ifdef __linux__
+#include <unistd.h>
+#endif
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
 
 void oval_log(void* user_data, ECGPULogSeverity severity, const char* fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
+#ifdef __ANDROID__
+	android_LogPriority priority = ANDROID_LOG_UNKNOWN;
+	if (severity == CGPU_LOG_TRACE)
+		priority = ANDROID_LOG_VERBOSE;
+	else if (severity == CGPU_LOG_DEBUG)
+		priority = ANDROID_LOG_DEBUG;
+	else if (severity == CGPU_LOG_INFO)
+		priority = ANDROID_LOG_INFO;
+	else if (severity == CGPU_LOG_WARNING)
+		priority = ANDROID_LOG_WARN;
+	else if (severity == CGPU_LOG_ERROR)
+		priority = ANDROID_LOG_ERROR;
+	else if (severity == CGPU_LOG_FATAL)
+		priority = ANDROID_LOG_FATAL;
+	__android_log_print(priority, "oval", fmt, args);
+#else
 	vprintf(fmt, args);
+#endif
 	va_end(args);
 }
 
+#ifdef _WIN32
 static size_t malloced = 0;
 void* oval_malloc(void* user_data, size_t size, const void* pool)
 {
@@ -71,26 +95,37 @@ void* oval_calloc_aligned(void* user_data, size_t count, size_t size, size_t ali
 	return memory;
 }
 
-void oval_free_aligned(void* user_data, void* ptr, size_t alignment, const void* pool)
+void oval_free_aligned(void* user_data, void* ptr, const void* pool)
 {
-	aligned_malloced -= ptr ? _aligned_msize(ptr, alignment, 0) : 0;
+	aligned_malloced -= ptr ? _aligned_msize(ptr, 1, 0) : 0;
 	_aligned_free(ptr);
 }
+#endif
 
 oval_device_t* oval_create_device(const oval_device_descriptor* device_descriptor)
 {
-	if (SDL_Init(SDL_INIT_VIDEO) < 0)
+	SDL_SetHint(SDL_HINT_VIDEO_EXTERNAL_CONTEXT, "1");
+	if (SDL_Init(0) < 0)
 		return nullptr;
 
-	SDL_Window* window = SDL_CreateWindow("oval", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, device_descriptor->width, device_descriptor->height, SDL_WINDOW_SHOWN | SDL_WINDOW_VULKAN);
+	uint32_t windowFlag = SDL_WINDOW_SHOWN;
+#ifdef __ANDROID__
+	windowFlag |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+#endif
+	SDL_Window* window = SDL_CreateWindow("oval", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, device_descriptor->width, device_descriptor->height, windowFlag);
 	if (window == nullptr)
 	{
 		SDL_Quit();
 		return nullptr;
 	}
 
+	int w, h;
+	SDL_GetWindowSize(window, &w, &h);
+
 	auto memory_resource = new std::pmr::unsynchronized_pool_resource();
 	oval_device_t super = { .descriptor = *device_descriptor, .deltaTime = 0 };
+	super.width = w;
+	super.height = h;
 
 	auto device_cgpu = new oval_cgpu_device_t(super, memory_resource);
 	device_cgpu->window = window;
@@ -102,14 +137,19 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 			device_cgpu->rdc = GetRenderDocApi();
 	}
 
+	bool validation = true;
+#ifdef __ANDROID__
+	validation = false;
+#endif
 	CGPUInstanceDescriptor instance_desc = {
 		.backend = CGPU_BACKEND_VULKAN,
-		.enable_debug_layer = true,
-		.enable_gpu_based_validation = true,
-		.enable_set_name = true,
+		.enable_debug_layer = validation,
+		.enable_gpu_based_validation = validation,
+		.enable_set_name = validation,
 		.logger = {
 			.log_callback = oval_log
 		},
+#ifdef _WIN32
 		.allocator = {
 			.malloc_fn = oval_malloc,
 			.realloc_fn = oval_realloc,
@@ -120,13 +160,14 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 			.calloc_aligned_fn = oval_calloc_aligned,
 			.free_aligned_fn = oval_free_aligned,
 		},
+#endif
 	};
 
 	device_cgpu->instance = cgpu_create_instance(&instance_desc);
 
 	uint32_t adapters_count = 0;
 	cgpu_enum_adapters(device_cgpu->instance, CGPU_NULLPTR, &adapters_count);
-	CGPUAdapterId* adapters = (CGPUAdapterId*)_alloca(sizeof(CGPUAdapterId) * (adapters_count));
+	CGPUAdapterId* adapters = (CGPUAdapterId*)malloc(sizeof(CGPUAdapterId) * (adapters_count));
 	cgpu_enum_adapters(device_cgpu->instance, adapters, &adapters_count);
 	auto adapter = adapters[0];
 
@@ -142,14 +183,18 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 	device_cgpu->device = cgpu_create_device(adapter, &device_desc);
 	device_cgpu->gfx_queue = cgpu_get_queue(device_cgpu->device, CGPU_QUEUE_TYPE_GRAPHICS, 0);
 	device_cgpu->present_queue = device_cgpu->gfx_queue;
-
+	free(adapters);
 	SDL_SysWMinfo wmInfo;
 	SDL_VERSION(&wmInfo.version);
 	SDL_GetWindowWMInfo(window, &wmInfo);
-	device_cgpu->surface = cgpu_surface_from_native_view(device_cgpu->device, wmInfo.info.win.window);
+	void* native_view = nullptr;
+#ifdef _WIN32
+	native_view = wmInfo.info.win.window;
+#elif defined(__ANDROID__)
+	native_view = wmInfo.info.android.window;
+#endif
 
-	int w, h;
-	SDL_GetWindowSize(device_cgpu->window, &w, &h);
+	device_cgpu->surface = cgpu_surface_from_native_view(device_cgpu->device, native_view);
 
 	ECGPUFormat swapchainFormat = CGPU_FORMAT_R8G8B8A8_SRGB;
 	CGPUSwapChainDescriptor descriptor = {
@@ -163,15 +208,13 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 		.format = swapchainFormat,
 	};
 	device_cgpu->swapchain = cgpu_create_swapchain(device_cgpu->device, &descriptor);
-
+	device_cgpu->backbuffer.resize(device_cgpu->swapchain->buffer_count);
+	device_cgpu->swapchain_prepared_semaphores.resize(device_cgpu->swapchain->buffer_count);
 	for (uint32_t i = 0; i < device_cgpu->swapchain->buffer_count; i++)
 	{
-		HGEGraphics::init_backbuffer(device_cgpu->backbuffer + i, device_cgpu->swapchain, i);
+		HGEGraphics::init_backbuffer(&device_cgpu->backbuffer[i], device_cgpu->swapchain, i);
 		device_cgpu->swapchain_prepared_semaphores[i] = cgpu_create_semaphore(device_cgpu->device);
 	}
-
-	for (size_t i = 0; i < device_cgpu->swapchain->buffer_count; ++i)
-		device_cgpu->frameDatas.emplace_back(device_cgpu->device, device_cgpu->gfx_queue, device_descriptor->enable_profile, device_cgpu->memory_resource);
 
 	device_cgpu->render_finished_semaphore = cgpu_create_semaphore(device_cgpu->device);
 
@@ -194,10 +237,12 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 		uint32_t colors[count];
 		std::fill(colors, colors + count, 0xffff00ff);
 		device_cgpu->default_texture = oval_create_texture_from_buffer(&device_cgpu->super, default_texture_desc, colors, sizeof(colors));
-		for (int i = 0; i < 3; ++i)
-		{
-			device_cgpu->frameDatas[i].execContext.default_texture = device_cgpu->default_texture->view;
-		}
+	}
+
+	for (uint32_t i = 0; i < 3; ++i)
+	{
+		device_cgpu->frameDatas.emplace_back(device_cgpu->device, device_cgpu->gfx_queue, device_cgpu->super.descriptor.enable_profile, device_cgpu->memory_resource);
+		device_cgpu->frameDatas[i].execContext.default_texture = device_cgpu->default_texture->view;
 	}
 
 	IMGUI_CHECKVERSION();
@@ -467,10 +512,11 @@ void render(oval_cgpu_device_t* device, HGEGraphics::Backbuffer* backbuffer)
 
 bool on_resize(oval_cgpu_device_t* D)
 {
-	for (uint32_t i = 0; i < 3; i++)
+	for (uint32_t i = 0; i < D->backbuffer.size(); i++)
 	{
-		HGEGraphics::free_backbuffer(D->backbuffer + i);
+		HGEGraphics::free_backbuffer(&D->backbuffer[i]);
 	}
+	D->backbuffer.clear();
 
 	if (D->swapchain)
 		cgpu_free_swapchain(D->swapchain);
@@ -485,6 +531,9 @@ bool on_resize(oval_cgpu_device_t* D)
 	if (w == 0 || h == 0)
 		return false;
 
+	D->super.width = w;
+	D->super.height = h;
+
 	ECGPUFormat swapchainFormat = CGPU_FORMAT_R8G8B8A8_SRGB;
 	CGPUSwapChainDescriptor descriptor = {
 		.present_queues = &D->present_queue,
@@ -497,10 +546,22 @@ bool on_resize(oval_cgpu_device_t* D)
 		.format = swapchainFormat,
 	};
 	D->swapchain = cgpu_create_swapchain(D->device, &descriptor);
+	D->backbuffer.resize(D->swapchain->buffer_count);
 	for (uint32_t i = 0; i < D->swapchain->buffer_count; i++)
 	{
-		HGEGraphics::init_backbuffer(D->backbuffer + i, D->swapchain, i);
+		HGEGraphics::init_backbuffer(&D->backbuffer[i], D->swapchain, i);
 	}
+	for (uint32_t i = D->swapchain->buffer_count; i < D->swapchain_prepared_semaphores.size(); ++i)
+	{
+		cgpu_free_semaphore(D->swapchain_prepared_semaphores[i]);
+		D->swapchain_prepared_semaphores[i] = CGPU_NULLPTR;
+	}
+	D->swapchain_prepared_semaphores.resize(std::min((size_t)D->swapchain->buffer_count, D->swapchain_prepared_semaphores.size()));
+	for (uint32_t i = D->swapchain_prepared_semaphores.size(); i < D->swapchain->buffer_count; ++i)
+	{
+		D->swapchain_prepared_semaphores.push_back(cgpu_create_semaphore(D->device));
+	}
+	assert(D->swapchain_prepared_semaphores.size() == D->swapchain->buffer_count);
 
 	return true;
 }
@@ -514,11 +575,23 @@ void oval_runloop(oval_device_t* device)
 	bool requestResize = false;
 
 	D->current_frame_index = 0;
-	clock_t lastTime = clock();
+#ifdef _WIN32
+	LARGE_INTEGER frequency;
+	LARGE_INTEGER lastTime;
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&lastTime);
+#else
+    struct timespec lastTime;
+    clock_gettime(CLOCK_MONOTONIC, &lastTime);
+#endif
 
 	while (quit == false)
 	{
+#ifdef _WIN32
 		_sleep(0);
+#else
+		sleep(0);
+#endif
 
 		while (SDL_PollEvent(&e))
 		{
@@ -574,8 +647,15 @@ void oval_runloop(oval_device_t* device)
 			continue;
 		}
 
-		clock_t currentTime = clock();
-		double elapsedTime = (double)(currentTime - lastTime) / CLOCKS_PER_SEC;
+#ifdef _WIN32
+		LARGE_INTEGER currentTime;
+		QueryPerformanceCounter(&currentTime);
+		double elapsedTime = (double)(currentTime.QuadPart - lastTime.QuadPart) / frequency.QuadPart;
+#else
+		struct timespec currentTime;
+		clock_gettime(CLOCK_MONOTONIC, &currentTime);
+		double elapsedTime = (currentTime.tv_sec - lastTime.tv_sec) + (currentTime.tv_nsec - lastTime.tv_nsec) / 1e9;
+#endif
 		lastTime = currentTime;
 		D->super.deltaTime = elapsedTime;
 
@@ -620,7 +700,7 @@ void oval_runloop(oval_device_t* device)
 		};
 		cgpu_queue_present(D->present_queue, &present_desc);
 
-		D->current_frame_index = (D->current_frame_index + 1) % D->swapchain->buffer_count;
+		D->current_frame_index = (D->current_frame_index + 1) % D->frameDatas.size();
 
 		if (rdc_capturing)
 		{
@@ -678,12 +758,18 @@ void oval_free_device(oval_device_t* device)
 		cgpu_free_sampler(D->blit_linear_sampler);
 	D->blit_linear_sampler = nullptr;
 
-	for (uint32_t i = 0; i < D->swapchain->buffer_count; i++)
+	for (uint32_t i = 0; i < D->swapchain_prepared_semaphores.size(); ++i)
 	{
 		cgpu_free_semaphore(D->swapchain_prepared_semaphores[i]);
 		D->swapchain_prepared_semaphores[i] = CGPU_NULLPTR;
-		HGEGraphics::free_backbuffer(D->backbuffer + i);
 	}
+	D->swapchain_prepared_semaphores.clear();
+
+	for (uint32_t i = 0; i < D->backbuffer.size(); ++i)
+	{
+		HGEGraphics::free_backbuffer(&D->backbuffer[i]);
+	}
+	D->backbuffer.clear();
 
 	cgpu_free_swapchain(D->swapchain);
 	D->swapchain = CGPU_NULLPTR;
@@ -696,7 +782,7 @@ void oval_free_device(oval_device_t* device)
 	D->info.reset();
 	D->current_frame_index = -1;
 
-	for (int i = 0; i < 3; ++i)
+	for (int i = 0; i < D->frameDatas.size(); ++i)
 	{
 		D->frameDatas[i].free();
 	}

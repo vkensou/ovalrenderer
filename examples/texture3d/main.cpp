@@ -123,7 +123,7 @@ struct Application
 	HGEGraphics::Shader* texture3d;
 	HGEGraphics::Texture* noisemap;
 	CGPUSamplerId sampler = CGPU_NULLPTR;
-	clock_t time;
+	float time;
 	HGEGraphics::Mesh* quad;
 	ObjectData object_data;
 	float lightDirEulerX, lightDirEulerY;
@@ -191,7 +191,7 @@ void _init_resource(Application& app)
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
 
-	app.texture3d = oval_create_shader(app.device, "texture3d/texture3d.vert.spv", "texture3d/texture3d.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.texture3d = oval_create_shader(app.device, "shaderbin/texture3d.vert.spv", "shaderbin/texture3d.frag.spv", blend_desc, depth_desc, rasterizer_state);
 
 	CGPUSamplerDescriptor cubemap_sampler_desc = {
 		.min_filter = CGPU_FILTER_TYPE_LINEAR,
@@ -227,7 +227,7 @@ void _free_resource(Application& app)
 
 void _init_world(Application& app)
 {
-	app.time = clock();
+	app.time = 0;
 	app.lightDirEulerX = 180;
 	app.lightDirEulerY = -30;
 }
@@ -236,8 +236,7 @@ void on_update(oval_device_t* device)
 {
 	Application* app = (Application*)device->descriptor.userdata;
 
-	auto now = clock();
-	auto duration = (double)(now - app->time) / CLOCKS_PER_SEC;
+	app->time += device->deltaTime;
 
 	auto cameraParentMat = HMM_QToM4(HMM_QFromEuler_YXZ(HMM_AngleDeg(0), HMM_AngleDeg(24), 0));
 	auto cameraLocalMat = HMM_Translate(HMM_V3(0, 0, -1));
@@ -248,7 +247,7 @@ void on_update(oval_device_t* device)
 	auto forward = HMM_M4GetForward(cameraMat);
 	auto viewMat = HMM_LookAt2_LH(eye, forward, HMM_V3_Up);
 
-	float aspect = (float)app->device->descriptor.width / app->device->descriptor.height;
+	float aspect = (float)device->width / device->height;
 	float near = 0.1f;
 	float far = 256;
 	float fov = 60;
@@ -267,7 +266,7 @@ void on_update(oval_device_t* device)
 	app->object_data.wMatrix = objectMat;
 	app->object_data.lightDir = HMM_V4V(lightDir, 0);
 	auto depth = app->object_data.viewPos.W;
-	depth = duration * 0.15f;
+	depth = app->time * 0.15f;
 	depth -= (int)depth;
 	app->object_data.viewPos = HMM_V4V(eye, depth);
 }
@@ -319,7 +318,8 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 	passdata->object_ubo_handle = object_ubo_handle;
 }
 
-int main()
+extern "C"
+int SDL_main(int argc, char *argv[])
 {
 	const int width = 800;
 	const int height = 600;

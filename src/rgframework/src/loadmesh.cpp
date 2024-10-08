@@ -3,6 +3,10 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
 
+#include "SDL_rwops.h"
+#include "streambuffersource.h"
+#include <istream>
+
 std::tuple<std::pmr::vector<TexturedVertex>*, std::pmr::vector<uint32_t>*> LoadObjModel(const char8_t* filename, bool right_hand, std::pmr::memory_resource* memory_resource)
 {
 	tinyobj::attrib_t attrib;
@@ -12,7 +16,11 @@ std::tuple<std::pmr::vector<TexturedVertex>*, std::pmr::vector<uint32_t>*> LoadO
 
 	std::pmr::vector<TexturedVertex>* vertices;
 	std::pmr::vector<uint32_t>* indices;
-	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, (const char*)filename))
+
+	buffersource bs(readfile(filename));
+	std::istream reader(&bs);	
+
+	if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, &reader))
 	{
 		return { vertices, indices };
 	}

@@ -1,4 +1,4 @@
-#include "GraphicsPipelinePool.h"
+#include "graphicspipelinepool.h"
 
 #include "renderer.h"
 

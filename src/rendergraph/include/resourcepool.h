@@ -64,14 +64,15 @@ namespace HGEGraphics
 			auto iter = m_resources.find(descriptor);
 			if (iter != m_resources.end())
 			{
-				auto& resource = iter->second;
+				auto& resourceNode = iter->second;
+				auto resource = resourceNode.first;
 				if constexpr (!neverRelease)
 					m_resources.erase(iter);
 				else
 				{
-					resource.second = timestamp;
+					resourceNode.second = timestamp;
 				}
-				return resource.first;
+				return resource;
 			}
 
 			if (m_upstream)

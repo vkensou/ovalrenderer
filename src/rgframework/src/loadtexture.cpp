@@ -42,7 +42,8 @@ uint64_t load_texture_ktx(oval_cgpu_device_t* device, oval_graphics_transfer_que
 {
 	ktxResult result = KTX_SUCCESS;
 	ktxTexture* ktxTexture;
-	result = ktxTexture_CreateFromNamedFile((const char*)filepath, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
+	auto buffer = readfile(filepath);
+	result = ktxTexture_CreateFromMemory(buffer.data(), buffer.size(), KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
 	if (result != KTX_SUCCESS)
 		return 0;
 
@@ -85,7 +86,7 @@ uint64_t load_texture_ktx(oval_cgpu_device_t* device, oval_graphics_transfer_que
 
 	HGEGraphics::init_texture(texture, device->device, texture_desc);
 
-	auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max(size >> mip, 1ull); };
+	auto mipedSize = [](uint64_t size, uint64_t mip) { return std::max<uint64_t>(size >> mip, 1ull); };
 	uint64_t size = 0;
 	uint32_t textureComponent = FormatUtil_BitSizeOfBlock(texture->handle->info->format) / 8;
 	auto data = oval_graphics_transfer_queue_transfer_data_to_texture_full(queue, texture, generateMipmap, ktxTexture->numLevels, &size);
@@ -131,7 +132,8 @@ uint64_t load_texture_ktx(oval_cgpu_device_t* device, oval_graphics_transfer_que
 uint64_t load_texture_raw(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t queue, HGEGraphics::Texture* texture, const char8_t* filepath, bool mipmap)
 {
 	int width = 0, height = 0, components = 0;
-	auto texture_loader = stbi_load((const char*)filepath, &width, &height, &components, 4);
+	auto buffer = readfile(filepath);
+	auto texture_loader = stbi_load_from_memory((const stbi_uc *)buffer.data(), buffer.size(), &width, &height, &components, 4);
 	if (!texture_loader)
 	{
 		assert(texture_loader && "load texture filed");

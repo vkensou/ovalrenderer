@@ -36,6 +36,7 @@ bool load_renderdoc(const std::string& path)
 
 RENDERDOC_API_1_0_0* GetRenderDocApi()
 {
+#ifdef _WIN32
 	RENDERDOC_API_1_0_0* rdoc = nullptr;
 	HMODULE module = GetModuleHandleA("renderdoc.dll");
 
@@ -58,4 +59,6 @@ RENDERDOC_API_1_0_0* GetRenderDocApi()
 	}
 
 	return rdoc;
+#endif
+	return nullptr;
 }

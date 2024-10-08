@@ -77,7 +77,7 @@ void _init_resource(Application& app)
 	CGPURasterizerStateDescriptor rasterizer_state = {
 		.cull_mode = CGPU_CULL_MODE_BACK,
 	};
-	app.shader = oval_create_shader(app.device, "animation/object.vert.spv", "animation/object.frag.spv", blend_desc, depth_desc, rasterizer_state);
+	app.shader = oval_create_shader(app.device, "shaderbin/object.vert.spv", "shaderbin/object.frag.spv", blend_desc, depth_desc, rasterizer_state);
 
 	CGPUSamplerDescriptor texture_sampler_desc = {
 		.min_filter = CGPU_FILTER_TYPE_LINEAR,
@@ -151,7 +151,7 @@ void _init_world(Application& app)
 	auto forward = HMM_M4GetForward(cameraMat);
 	auto viewMat = HMM_LookAt2_LH(eye, forward, HMM_V3_Up);
 
-	float aspect = 800.f / 600.f;
+	float aspect = (float)app.device->width / app.device->height;
 	float winSize = 6;
 	float near = 0.1f;
 	float far = 100;
@@ -286,7 +286,8 @@ void on_draw(oval_device_t* device, HGEGraphics::rendergraph_t& rg, HGEGraphics:
 	passdata->ubo_handle = ubo_handle;
 }
 
-int main()
+extern "C"
+int SDL_main(int argc, char *argv[])
 {
 	const int width = 800;
 	const int height = 600;
