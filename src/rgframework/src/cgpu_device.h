@@ -154,3 +154,4 @@ void oval_graphics_transfer_queue_execute_all(oval_cgpu_device_t* device, HGEGra
 void oval_graphics_transfer_queue_release_all(oval_cgpu_device_t* device);
 uint64_t load_mesh(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t queue, HGEGraphics::Mesh* mesh, const char8_t* filepath);
 uint64_t load_texture(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t queue, HGEGraphics::Texture* texture, const char8_t* filepath, bool mipmap);
+std::vector<uint8_t> readfile(const char8_t* filename);

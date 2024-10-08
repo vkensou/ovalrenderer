@@ -186,3 +186,20 @@ uint8_t* oval_graphics_set_texture_data_slice(oval_device_t* device, HGEGraphics
 	texture->prepared = true;	// TODO: 这里应该设置吗
 	return oval_graphics_transfer_queue_transfer_data_to_texture_slice(D->cur_transfer_queue, texture, mipmap, slice, size);
 }
+
+std::vector<uint8_t> readfile(const char8_t* filename)
+{
+    SDL_RWops *rw = SDL_RWFromFile((const char*)filename, "rb");
+	if (!rw)
+	{
+		throw std::runtime_error("failed to open file!");
+	}
+
+    auto size = SDL_RWsize(rw);
+
+    std::vector<uint8_t> buffer(size);
+    SDL_RWread(rw, buffer.data(), sizeof(char), size);
+    // don't forget to close the file
+    SDL_RWclose(rw);
+	return buffer;
+}

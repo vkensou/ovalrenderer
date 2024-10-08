@@ -42,8 +42,8 @@ uint64_t load_texture_ktx(oval_cgpu_device_t* device, oval_graphics_transfer_que
 {
 	ktxResult result = KTX_SUCCESS;
 	ktxTexture* ktxTexture;
-	std::u8string finalpath = std::u8string(u8"assets/") + filepath;
-	result = ktxTexture_CreateFromNamedFile((const char*)finalpath.c_str(), KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
+	auto buffer = readfile(filepath);
+	result = ktxTexture_CreateFromMemory(buffer.data(), buffer.size(), KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
 	if (result != KTX_SUCCESS)
 		return 0;
 
@@ -132,8 +132,8 @@ uint64_t load_texture_ktx(oval_cgpu_device_t* device, oval_graphics_transfer_que
 uint64_t load_texture_raw(oval_cgpu_device_t* device, oval_graphics_transfer_queue_t queue, HGEGraphics::Texture* texture, const char8_t* filepath, bool mipmap)
 {
 	int width = 0, height = 0, components = 0;
-	std::u8string finalpath = std::u8string(u8"assets/") + filepath;
-	auto texture_loader = stbi_load((const char*)finalpath.c_str(), &width, &height, &components, 4);
+	auto buffer = readfile(filepath);
+	auto texture_loader = stbi_load_from_memory((const stbi_uc *)buffer.data(), buffer.size(), &width, &height, &components, 4);
 	if (!texture_loader)
 	{
 		assert(texture_loader && "load texture filed");

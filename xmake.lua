@@ -64,7 +64,7 @@ rule("example_base")
                 target:add("ldflags", "/subsystem:console")
             end
         end
-        target:set("rundir", "$(projectdir)/examples")
+        target:set("rundir", "$(projectdir)/examples/assets")
         target:add("deps", "rgframework")
         target:add("packages", "libsdl")
     end)
