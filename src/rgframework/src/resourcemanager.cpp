@@ -46,28 +46,6 @@ void oval_free_mesh(oval_device_t* device, HGEGraphics::Mesh* mesh)
 	HGEGraphics::free_mesh(mesh);
 }
 
-HGEGraphics::Shader* oval_create_shader(oval_device_t* device, const std::string& vertPath, const std::string& fragPath, const CGPUBlendStateDescriptor& blend_desc, const CGPUDepthStateDesc& depth_desc, const CGPURasterizerStateDescriptor& rasterizer_state)
-{
-	auto D = (oval_cgpu_device_t*)device;
-	return HGEGraphics::create_shader(D->device, vertPath, fragPath, blend_desc, depth_desc, rasterizer_state);
-}
-
-void oval_free_shader(oval_device_t* device, HGEGraphics::Shader* shader)
-{
-	HGEGraphics::free_shader(shader);
-}
-
-HGEGraphics::ComputeShader* oval_create_compute_shader(oval_device_t* device, const std::string& compPath)
-{
-	auto D = (oval_cgpu_device_t*)device;
-	return HGEGraphics::create_compute_shader(D->device, compPath);
-}
-
-void oval_free_compute_shader(oval_device_t* device, HGEGraphics::ComputeShader* shader)
-{
-	HGEGraphics::free_compute_shader(shader);
-}
-
 CGPUSamplerId oval_create_sampler(oval_device_t* device, const CGPUSamplerDescriptor* desc)
 {
 	auto D = (oval_cgpu_device_t*)device;

@@ -1,41 +1,11 @@
 #include "renderer.h"
 
 #include <vector>
-#include <fstream>
 #include "hash.h"
 #include "rendergraph.h"
 
 namespace HGEGraphics
 {
-#ifdef _WIN32
-	std::vector<char> readFile(const std::string& filename)
-	{
-		std::ifstream file("assets/" + filename, std::ios::ate | std::ios::binary);
-
-		if (!file.is_open())
-		{
-			throw std::runtime_error("failed to open file!");
-		}
-
-		size_t fileSize = (size_t)file.tellg();
-		std::vector<char> buffer(fileSize);
-
-		file.seekg(0);
-		file.read(buffer.data(), fileSize);
-
-		file.close();
-		return buffer;
-	}
-#endif
-
-	Shader* create_shader(CGPUDeviceId device, const std::string& vertPath, const std::string& fragPath, const CGPUBlendStateDescriptor& blend_desc, const CGPUDepthStateDesc& depth_desc, const CGPURasterizerStateDescriptor& rasterizer_state)
-	{
-		auto vertShaderCode = readFile(vertPath);
-		auto fragShaderCode = readFile(fragPath);
-		return create_shader(device, reinterpret_cast<const uint8_t*>(vertShaderCode.data()), (uint32_t)vertShaderCode.size(), reinterpret_cast<const uint8_t*>(fragShaderCode.data()), (uint32_t)fragShaderCode.size(),
-			blend_desc, depth_desc, rasterizer_state);
-	}
-
 	Shader* create_shader(CGPUDeviceId device, const uint8_t* vert_data, uint32_t vert_length, const uint8_t* frag_data, uint32_t frag_length, const CGPUBlendStateDescriptor& blend_desc, const CGPUDepthStateDesc& depth_desc, const CGPURasterizerStateDescriptor& rasterizer_state)
 	{
 		CGPUShaderLibraryDescriptor vs_desc = {
@@ -81,12 +51,6 @@ namespace HGEGraphics
 		cgpu_free_shader_library(shader->vs.library);
 		cgpu_free_shader_library(shader->ps.library);
 		delete shader;
-	}
-
-	ComputeShader* create_compute_shader(CGPUDeviceId device, const std::string& compPath)
-	{
-		auto compShaderCode = readFile(compPath);
-		return create_compute_shader(device, reinterpret_cast<const uint8_t*>(compShaderCode.data()), compShaderCode.size());
 	}
 
 	ComputeShader* create_compute_shader(CGPUDeviceId device, const uint8_t* comp_data, uint32_t comp_length)
