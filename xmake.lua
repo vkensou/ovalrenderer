@@ -7,7 +7,7 @@ if is_plat("windows") then
     add_ldflags("-subsystem:console")
 elseif is_plat("android") then
     add_cxflags("-fPIC")
-    includes("androidcpp-sdl")
+    includes("androidcpp")
     set_runtimes("c++_static")
 end
 
@@ -59,7 +59,7 @@ target("rgdemo")
         add_ldflags("/subsystem:console")
     else 
         set_kind("shared")
-        add_rules("androidcpp-sdl", {android_sdk_version = "34", android_manifest = "AndroidManifest.xml", android_res = "res", android_assets = "assets", apk_output_path = ".", package_name = "com.xmake.androidcpp", activity_name = "org.libsdl.app.SDLActivity"})
+        add_rules("androidcpp", {android_sdk_version = "34", android_manifest = "AndroidManifest.xml", android_res = "res", android_assets = "assets", attachedjar = path.join("androidsdl", "libsdl-2.30.7.jar"), apk_output_path = ".", package_name = "com.xmake.androidcpp", activity_name = "org.libsdl.app.SDLActivity"})
     end
     set_rundir("$(projectdir)")
     add_deps("rgframework")
