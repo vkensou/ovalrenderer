@@ -15,7 +15,7 @@ if is_host("windows") and is_plat("android") then
     set_policy("install.strip_packagelibs", false)
 end
 
-add_requires("libsdl 2.30.7", {configs = {sdlmain = true, shared = true}})
+add_requires("libsdl 2.30.7", {configs = {sdlmain = true, shared = false}})
 add_requires("imgui v1.91.1-docking", {configs = {}})
 
 if is_plat("windows", "linux", "android") then
@@ -66,7 +66,6 @@ rule("example_base")
         end
         target:set("rundir", "$(projectdir)/examples/assets")
         target:add("deps", "rgframework")
-        target:add("packages", "libsdl")
     end)
 
 target("rgdemo")
