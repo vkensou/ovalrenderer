@@ -20,24 +20,20 @@ void oval_log(void* user_data, ECGPULogSeverity severity, const char* fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-#ifdef __ANDROID__
-	android_LogPriority priority = ANDROID_LOG_UNKNOWN;
+	SDL_LogPriority priority = SDL_LOG_PRIORITY_VERBOSE;
 	if (severity == CGPU_LOG_TRACE)
-		priority = ANDROID_LOG_VERBOSE;
+		priority = SDL_LOG_PRIORITY_VERBOSE;
 	else if (severity == CGPU_LOG_DEBUG)
-		priority = ANDROID_LOG_DEBUG;
+		priority = SDL_LOG_PRIORITY_DEBUG;
 	else if (severity == CGPU_LOG_INFO)
-		priority = ANDROID_LOG_INFO;
+		priority = SDL_LOG_PRIORITY_INFO;
 	else if (severity == CGPU_LOG_WARNING)
-		priority = ANDROID_LOG_WARN;
+		priority = SDL_LOG_PRIORITY_WARN;
 	else if (severity == CGPU_LOG_ERROR)
-		priority = ANDROID_LOG_ERROR;
+		priority = SDL_LOG_PRIORITY_ERROR;
 	else if (severity == CGPU_LOG_FATAL)
-		priority = ANDROID_LOG_FATAL;
-	__android_log_print(priority, "oval", fmt, args);
-#else
-	vprintf(fmt, args);
-#endif
+		priority = SDL_LOG_PRIORITY_CRITICAL;
+	SDL_LogMessageV(SDL_LOG_CATEGORY_RENDER, priority, fmt, args);
 	va_end(args);
 }
 
@@ -104,6 +100,8 @@ void oval_free_aligned(void* user_data, void* ptr, const void* pool)
 oval_device_t* oval_create_device(const oval_device_descriptor* device_descriptor)
 {
 	SDL_SetHint(SDL_HINT_VIDEO_EXTERNAL_CONTEXT, "1");
+	SDL_LogSetAllPriority(SDL_LOG_PRIORITY_VERBOSE);
+	
 	if (SDL_Init(0) < 0)
 		return nullptr;
 
