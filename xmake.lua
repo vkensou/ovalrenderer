@@ -16,7 +16,8 @@ if is_host("windows") and is_plat("android") then
 end
 
 add_requires("libsdl 2.30.7", {configs = {sdlmain = true, shared = false}})
-add_requires("imgui v1.91.1-docking", {configs = {}})
+add_requires("imgui v1.91.1-docking")
+add_requires("tbox v1.7.6")
 
 if is_plat("windows", "linux", "android") then
     option("use_vulkan")
@@ -44,6 +45,7 @@ target("rgframework")
     add_defines("KHRONOS_STATIC")
     add_packages("libsdl")
     add_packages("imgui", {public = true})
+    add_packages("tbox", {public = true})
     add_rules("utils.hlsl2spv", {bin2c = true})
     add_includedirs("src/rgframework/include", {public = true})
     add_headerfiles("src/rgframework/include/*.h")
