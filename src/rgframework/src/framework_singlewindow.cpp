@@ -6,7 +6,6 @@
 #include "rendergraph_compiler.h"
 #include "rendergraph_executor.h"
 #include "imgui_impl_sdl2.h"
-#include <time.h>
 #include "tiny_obj_loader.h"
 #include <string.h>
 #include "cgpu_device.h"
@@ -16,6 +15,7 @@
 #ifdef __ANDROID__
 #include <android/log.h>
 #endif
+#include "tbox/tbox.h"
 
 void oval_log(void* user_data, ECGPULogSeverity severity, const char* fmt, ...)
 {
@@ -123,7 +123,7 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 	SDL_GetWindowSize(window, &w, &h);
 
 	auto memory_resource = new std::pmr::unsynchronized_pool_resource();
-	oval_device_t super = { .descriptor = *device_descriptor, .deltaTime = 0 };
+	oval_device_t super = { .descriptor = *device_descriptor };
 	super.width = w;
 	super.height = h;
 
@@ -575,15 +575,8 @@ void oval_runloop(oval_device_t* device)
 	bool requestResize = false;
 
 	D->current_frame_index = 0;
-#ifdef _WIN32
-	LARGE_INTEGER frequency;
-	LARGE_INTEGER lastTime;
-    QueryPerformanceFrequency(&frequency);
-    QueryPerformanceCounter(&lastTime);
-#else
-    struct timespec lastTime;
-    clock_gettime(CLOCK_MONOTONIC, &lastTime);
-#endif
+	tb_hong_t startTime = tb_uclock();
+	tb_hong_t lastTime = startTime;
 
 	while (quit == false)
 	{
@@ -647,17 +640,15 @@ void oval_runloop(oval_device_t* device)
 			continue;
 		}
 
-#ifdef _WIN32
-		LARGE_INTEGER currentTime;
-		QueryPerformanceCounter(&currentTime);
-		double elapsedTime = (double)(currentTime.QuadPart - lastTime.QuadPart) / frequency.QuadPart;
-#else
-		struct timespec currentTime;
-		clock_gettime(CLOCK_MONOTONIC, &currentTime);
-		double elapsedTime = (currentTime.tv_sec - lastTime.tv_sec) + (currentTime.tv_nsec - lastTime.tv_nsec) / 1e9;
-#endif
+		tb_hong_t currentTime = tb_uclock();
+		double timeSinceStartup = (double)(currentTime - startTime) / 1e6;
+		double elapsedTime = (double)(currentTime - lastTime) / 1e6;
+
 		lastTime = currentTime;
-		D->super.deltaTime = elapsedTime;
+		D->super.delta_time = elapsedTime;
+		D->super.delta_time_double = elapsedTime;
+		D->super.time_since_startup = timeSinceStartup;
+		D->super.time_since_startup_double = timeSinceStartup;
 
 		if (D->super.descriptor.on_update)
 			D->super.descriptor.on_update(&D->super);
@@ -802,7 +793,10 @@ void oval_free_device(oval_device_t* device)
 
 	SDL_Quit();
 
-	D->super.deltaTime = 0;
+	D->super.delta_time = 0;
+	D->super.delta_time_double = 0;
+	D->super.time_since_startup = 0;
+	D->super.time_since_startup_double = 0;
 
 	delete D;
 

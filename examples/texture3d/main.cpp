@@ -123,7 +123,6 @@ struct Application
 	HGEGraphics::Shader* texture3d;
 	HGEGraphics::Texture* noisemap;
 	CGPUSamplerId sampler = CGPU_NULLPTR;
-	float time;
 	HGEGraphics::Mesh* quad;
 	ObjectData object_data;
 	float lightDirEulerX, lightDirEulerY;
@@ -227,7 +226,6 @@ void _free_resource(Application& app)
 
 void _init_world(Application& app)
 {
-	app.time = 0;
 	app.lightDirEulerX = 180;
 	app.lightDirEulerY = -30;
 }
@@ -235,8 +233,6 @@ void _init_world(Application& app)
 void on_update(oval_device_t* device)
 {
 	Application* app = (Application*)device->descriptor.userdata;
-
-	app->time += device->deltaTime;
 
 	auto cameraParentMat = HMM_QToM4(HMM_QFromEuler_YXZ(HMM_AngleDeg(0), HMM_AngleDeg(24), 0));
 	auto cameraLocalMat = HMM_Translate(HMM_V3(0, 0, -1));
@@ -266,7 +262,7 @@ void on_update(oval_device_t* device)
 	app->object_data.wMatrix = objectMat;
 	app->object_data.lightDir = HMM_V4V(lightDir, 0);
 	auto depth = app->object_data.viewPos.W;
-	depth = app->time * 0.15f;
+	depth = device->time_since_startup * 0.15f;
 	depth -= (int)depth;
 	app->object_data.viewPos = HMM_V4V(eye, depth);
 }

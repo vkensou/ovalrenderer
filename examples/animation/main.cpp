@@ -182,7 +182,7 @@ void on_update(oval_device_t* device)
 {
 	Application* app = (Application*)device->descriptor.userdata;
 
-	float dt = device->deltaTime;
+	float dt = device->delta_time;
 	for (auto& ball : app->balls)
 	{
 		ball.frameInterpolator += dt * 2;

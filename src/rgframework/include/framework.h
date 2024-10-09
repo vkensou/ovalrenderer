@@ -23,7 +23,10 @@ typedef struct oval_device_descriptor
 
 typedef struct oval_device_t {
     const oval_device_descriptor descriptor;
-    float deltaTime;
+    float delta_time;
+    float time_since_startup;
+    double delta_time_double;
+    double time_since_startup_double;
     uint16_t width;
     uint16_t height;
 } oval_device_t;

@@ -176,7 +176,7 @@ void on_update(oval_device_t* device)
 	depth -= (int)depth;
 	app->object_data.viewPos = HMM_V4V(eye, depth);
 
-	app->particle_update_data.deltaT = device->deltaTime * 2.5f;
+	app->particle_update_data.deltaT = device->delta_time * 2.5f;
 	app->particle_update_data.destX = 0;
 	app->particle_update_data.destY = 0;
 	app->particle_update_data.particleCount = PARTICLE_COUNT;
