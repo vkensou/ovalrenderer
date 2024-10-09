@@ -5,8 +5,6 @@
 #include "imgui.h"
 #include "renderdoc_helper.h"
 #include <queue>
-#include "ktx.h"
-#include "stb_image.h"
 #include "renderer.h"
 
 struct oval_transfer_data_to_texture

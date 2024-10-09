@@ -1,8 +1,5 @@
 ﻿#include "cgpu_device.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
 HGEGraphics::Texture* oval_create_texture(oval_device_t* device, const CGPUTextureDescriptor& desc)
 {
 	auto D = (oval_cgpu_device_t*)device;

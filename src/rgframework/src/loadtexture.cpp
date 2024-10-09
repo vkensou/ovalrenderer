@@ -1,5 +1,10 @@
 #include "cgpu_device.h"
 
+#include "ktx.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 static bool endsWithKtx(const char* str) {
 	const char* suffix = ".ktx";
 	size_t len = strlen(str);

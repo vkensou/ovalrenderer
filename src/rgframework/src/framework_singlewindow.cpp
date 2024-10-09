@@ -6,7 +6,6 @@
 #include "rendergraph_compiler.h"
 #include "rendergraph_executor.h"
 #include "imgui_impl_sdl2.h"
-#include "tiny_obj_loader.h"
 #include <string.h>
 #include "cgpu_device.h"
 #ifdef __linux__
