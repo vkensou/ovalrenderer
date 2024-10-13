@@ -40,38 +40,38 @@ void oval_log(void* user_data, ECGPULogSeverity severity, const char* fmt, ...)
 void* oval_malloc(void* user_data, size_t size, const void* pool)
 {
 	if (size == 0) return nullptr;
-	return tb_malloc(size);
+	return tb_allocator_malloc((tb_allocator_ref_t)user_data, size);
 }
 
 void* oval_realloc(void* user_data, void* ptr, size_t size, const void* pool)
 {
-	return tb_ralloc(ptr, size);
+	return tb_allocator_ralloc((tb_allocator_ref_t)user_data, ptr, size);
 }
 
 void* oval_calloc(void* user_data, size_t count, size_t size, const void* pool)
 {
 	if (size * count == 0) return nullptr;
-	return tb_nalloc0(count, size);
+	return tb_allocator_nalloc0((tb_allocator_ref_t)user_data, count, size);
 }
 
 void oval_free(void* user_data, void* ptr, const void* pool)
 {
 	if (!ptr) return;
-	tb_free(ptr);
+	tb_allocator_free((tb_allocator_ref_t)user_data, ptr);
 }
 
 void* oval_malloc_aligned(void* user_data, size_t size, size_t alignment, const void* pool)
 {
 	if (size == 0) return nullptr;
 	alignment = std::max(alignment, 4ull);
-	return tb_align_malloc(size, alignment);
+	return tb_allocator_align_malloc((tb_allocator_ref_t)user_data, size, alignment);
 }
 
 void* oval_realloc_aligned(void* user_data, void* ptr, size_t size, size_t alignment, const void* pool)
 {
 	if (size + alignment == 176) __debugbreak();
 	alignment = std::max(alignment, 4ull);
-	return tb_align_ralloc(ptr, size, alignment);
+	return tb_allocator_align_ralloc((tb_allocator_ref_t)user_data, ptr, size, alignment);
 }
 
 void* oval_calloc_aligned(void* user_data, size_t count, size_t size, size_t alignment, const void* pool)
@@ -79,13 +79,13 @@ void* oval_calloc_aligned(void* user_data, size_t count, size_t size, size_t ali
 	if (size == 176) __debugbreak();
 	if (size * count == 0) return nullptr;
 	alignment = std::max(alignment, 4ull);
-	return tb_align_nalloc0(count, size, alignment);
+	return tb_allocator_align_nalloc0((tb_allocator_ref_t)user_data, count, size, alignment);
 }
 
 void oval_free_aligned(void* user_data, void* ptr, const void* pool)
 {
 	if (!ptr) return;
-	tb_align_free(ptr);
+	tb_allocator_align_free((tb_allocator_ref_t)user_data, ptr);
 }
 
 oval_device_t* oval_create_device(const oval_device_descriptor* device_descriptor)
@@ -112,12 +112,13 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 	int w, h;
 	SDL_GetWindowSize(window, &w, &h);
 
+	auto _tb_allocator = tb_allocator();
 	auto memory_resource = new std::pmr::unsynchronized_pool_resource();
 	oval_device_t super = { .descriptor = *device_descriptor };
 	super.width = w;
 	super.height = h;
 
-	auto device_cgpu = new oval_cgpu_device_t(super, memory_resource);
+	auto device_cgpu = new oval_cgpu_device_t(super, _tb_allocator, memory_resource);
 	device_cgpu->window = window;
 
 	if (device_descriptor->enable_capture)
@@ -149,6 +150,7 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 			.realloc_aligned_fn = oval_realloc_aligned,
 			.calloc_aligned_fn = oval_calloc_aligned,
 			.free_aligned_fn = oval_free_aligned,
+			.user_data = device_cgpu->tb_allocator,
 		},
 #endif
 	};

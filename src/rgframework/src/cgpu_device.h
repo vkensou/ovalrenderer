@@ -6,6 +6,7 @@
 #include "renderdoc_helper.h"
 #include <queue>
 #include "renderer.h"
+#include "tbox/tbox.h"
 
 struct oval_transfer_data_to_texture
 {
@@ -103,13 +104,14 @@ struct TexturedVertex
 };
 
 typedef struct oval_cgpu_device_t {
-	oval_cgpu_device_t(const oval_device_t& super, std::pmr::memory_resource* memory_resource)
-		: super(super), memory_resource(memory_resource), transfer_queue(memory_resource), allocator(memory_resource), wait_load_resources(memory_resource)
+	oval_cgpu_device_t(const oval_device_t& super, tb_allocator_ref_t tb_allocator, std::pmr::memory_resource* memory_resource)
+		: super(super), tb_allocator(tb_allocator), memory_resource(memory_resource), transfer_queue(memory_resource), allocator(memory_resource), wait_load_resources(memory_resource)
 	{
 	}
 
 	oval_device_t super;
 	SDL_Window* window;
+	tb_allocator_ref_t tb_allocator;
 	std::pmr::memory_resource* memory_resource;
 	std::pmr::polymorphic_allocator<std::byte> allocator;
 	CGPUInstanceId instance;
