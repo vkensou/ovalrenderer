@@ -17,7 +17,7 @@ end
 
 add_requires("libsdl 2.30.7", {configs = {sdlmain = true, shared = false}})
 add_requires("imgui v1.91.1-docking")
-add_requires("tbox v1.7.6")
+add_requires("tbox v1.7.6", {configs = {debug = is_mode("debug")}})
 
 if is_plat("windows", "linux", "android") then
     option("use_vulkan")

@@ -37,68 +37,61 @@ void oval_log(void* user_data, ECGPULogSeverity severity, const char* fmt, ...)
 	va_end(args);
 }
 
-#ifdef _WIN32
-static size_t malloced = 0;
 void* oval_malloc(void* user_data, size_t size, const void* pool)
 {
-	if (size == 0)
-		return nullptr;
-	malloced += size;
-	return malloc(size);
+	if (size == 0) return nullptr;
+	return tb_malloc(size);
 }
 
 void* oval_realloc(void* user_data, void* ptr, size_t size, const void* pool)
 {
-	malloced -= ptr ? _msize(ptr) : 0;
-	malloced += size;
-	return realloc(ptr, size);
+	return tb_ralloc(ptr, size);
 }
 
 void* oval_calloc(void* user_data, size_t count, size_t size, const void* pool)
 {
-	if (count * size == 0)
-		return nullptr;
-	malloced += count * size;
-	return calloc(count, size);
+	if (size * count == 0) return nullptr;
+	return tb_nalloc0(count, size);
 }
 
 void oval_free(void* user_data, void* ptr, const void* pool)
 {
-	malloced -= ptr ? _msize(ptr) : 0;
-	free(ptr);
+	if (!ptr) return;
+	tb_free(ptr);
 }
 
-static size_t aligned_malloced = 0;
 void* oval_malloc_aligned(void* user_data, size_t size, size_t alignment, const void* pool)
 {
-	aligned_malloced += size;
-	return _aligned_malloc(size, alignment);
+	if (size == 0) return nullptr;
+	alignment = std::max(alignment, 4ull);
+	return tb_align_malloc(size, alignment);
 }
 
 void* oval_realloc_aligned(void* user_data, void* ptr, size_t size, size_t alignment, const void* pool)
 {
-	aligned_malloced -= ptr ? _aligned_msize(ptr, alignment, 0) : 0;
-	aligned_malloced += size;
-	return _aligned_realloc(ptr, size, alignment);
+	if (size + alignment == 176) __debugbreak();
+	alignment = std::max(alignment, 4ull);
+	return tb_align_ralloc(ptr, size, alignment);
 }
 
 void* oval_calloc_aligned(void* user_data, size_t count, size_t size, size_t alignment, const void* pool)
 {
-	aligned_malloced += count * size;
-	void* memory = _aligned_malloc(count * size, alignment);
-	if (memory != NULL) memset(memory, 0, count * size);
-	return memory;
+	if (size == 176) __debugbreak();
+	if (size * count == 0) return nullptr;
+	alignment = std::max(alignment, 4ull);
+	return tb_align_nalloc0(count, size, alignment);
 }
 
 void oval_free_aligned(void* user_data, void* ptr, const void* pool)
 {
-	aligned_malloced -= ptr ? _aligned_msize(ptr, 1, 0) : 0;
-	_aligned_free(ptr);
+	if (!ptr) return;
+	tb_align_free(ptr);
 }
-#endif
 
 oval_device_t* oval_create_device(const oval_device_descriptor* device_descriptor)
 {
+	tb_init(tb_null, tb_null);
+
 	SDL_SetHint(SDL_HINT_VIDEO_EXTERNAL_CONTEXT, "1");
 	SDL_LogSetAllPriority(SDL_LOG_PRIORITY_VERBOSE);
 	
@@ -798,6 +791,8 @@ void oval_free_device(oval_device_t* device)
 	delete D;
 
 	delete memory;
+
+	tb_exit();
 }
 
 void oval_render_debug_capture(oval_device_t* device)
