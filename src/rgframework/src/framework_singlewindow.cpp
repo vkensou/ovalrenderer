@@ -8,12 +8,6 @@
 #include "imgui_impl_sdl2.h"
 #include <string.h>
 #include "cgpu_device.h"
-#ifdef __linux__
-#include <unistd.h>
-#endif
-#ifdef __ANDROID__
-#include <android/log.h>
-#endif
 #include "tbox/tbox.h"
 
 void oval_log(void* user_data, ECGPULogSeverity severity, const char* fmt, ...)
@@ -63,20 +57,20 @@ void oval_free(void* user_data, void* ptr, const void* pool)
 void* oval_malloc_aligned(void* user_data, size_t size, size_t alignment, const void* pool)
 {
 	if (size == 0) return nullptr;
-	alignment = std::max(alignment, 4ull);
+	alignment = std::max<size_t>(alignment, 4);
 	return tb_allocator_align_malloc((tb_allocator_ref_t)user_data, size, alignment);
 }
 
 void* oval_realloc_aligned(void* user_data, void* ptr, size_t size, size_t alignment, const void* pool)
 {
-	alignment = std::max(alignment, 4ull);
+	alignment = std::max<size_t>(alignment, 4);
 	return tb_allocator_align_ralloc((tb_allocator_ref_t)user_data, ptr, size, alignment);
 }
 
 void* oval_calloc_aligned(void* user_data, size_t count, size_t size, size_t alignment, const void* pool)
 {
 	if (size * count == 0) return nullptr;
-	alignment = std::max(alignment, 4ull);
+	alignment = std::max<size_t>(alignment, 4);
 	return tb_allocator_align_nalloc0((tb_allocator_ref_t)user_data, count, size, alignment);
 }
 
@@ -139,7 +133,6 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 		.logger = {
 			.log_callback = oval_log
 		},
-#ifdef _WIN32
 		.allocator = {
 			.malloc_fn = oval_malloc,
 			.realloc_fn = oval_realloc,
@@ -151,7 +144,6 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 			.free_aligned_fn = oval_free_aligned,
 			.user_data = device_cgpu->tb_allocator,
 		},
-#endif
 	};
 
 	device_cgpu->instance = cgpu_create_instance(&instance_desc);
@@ -571,11 +563,7 @@ void oval_runloop(oval_device_t* device)
 
 	while (quit == false)
 	{
-#ifdef _WIN32
-		_sleep(0);
-#else
-		sleep(0);
-#endif
+		tb_sleep(0);
 
 		while (SDL_PollEvent(&e))
 		{
