@@ -69,14 +69,12 @@ void* oval_malloc_aligned(void* user_data, size_t size, size_t alignment, const 
 
 void* oval_realloc_aligned(void* user_data, void* ptr, size_t size, size_t alignment, const void* pool)
 {
-	if (size + alignment == 176) __debugbreak();
 	alignment = std::max(alignment, 4ull);
 	return tb_allocator_align_ralloc((tb_allocator_ref_t)user_data, ptr, size, alignment);
 }
 
 void* oval_calloc_aligned(void* user_data, size_t count, size_t size, size_t alignment, const void* pool)
 {
-	if (size == 176) __debugbreak();
 	if (size * count == 0) return nullptr;
 	alignment = std::max(alignment, 4ull);
 	return tb_allocator_align_nalloc0((tb_allocator_ref_t)user_data, count, size, alignment);

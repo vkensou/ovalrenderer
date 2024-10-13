@@ -103,6 +103,31 @@ struct TexturedVertex
 	HMM_Vec2 texCoord;
 };
 
+class tbox_memory_resource : public std::pmr::memory_resource
+{
+private:
+	tb_allocator_ref_t upstream;
+
+public:
+	explicit tbox_memory_resource(tb_allocator_ref_t upstream) : upstream(upstream) {
+	}
+
+private:
+	void* do_allocate(size_t bytes, size_t alignment) override {
+		return tb_allocator_align_malloc(upstream, bytes, alignment);
+	}
+	void do_deallocate(void* ptr, size_t bytes, size_t alignment) override {
+		tb_allocator_align_free(upstream, ptr);
+	}
+	bool do_is_equal(const std::pmr::memory_resource& other) const noexcept override {
+		if (this == &other)
+			return true;
+
+		auto op = dynamic_cast<const tbox_memory_resource*>(&other);
+		return op != nullptr;
+	}
+};
+
 typedef struct oval_cgpu_device_t {
 	oval_cgpu_device_t(const oval_device_t& super, tb_allocator_ref_t tb_allocator, std::pmr::memory_resource* memory_resource)
 		: super(super), tb_allocator(tb_allocator), memory_resource(memory_resource), transfer_queue(memory_resource), allocator(memory_resource), wait_load_resources(memory_resource)
