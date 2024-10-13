@@ -112,6 +112,7 @@ oval_device_t* oval_create_device(const oval_device_descriptor* device_descripto
 
 	auto _tb_allocator = tb_allocator();
 	auto memory_resource = new std::pmr::unsynchronized_pool_resource();
+	//auto memory_resource = new tbox_memory_resource(_tb_allocator);
 	oval_device_t super = { .descriptor = *device_descriptor };
 	super.width = w;
 	super.height = h;
