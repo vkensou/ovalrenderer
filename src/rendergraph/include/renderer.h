@@ -146,6 +146,7 @@ namespace HGEGraphics
 		Profiler* profiler = nullptr;
 		double gpuTicksPerSecond = 0;
 		CGPUTextureViewId default_texture = CGPU_NULLPTR;
+		bool support_shading_rate;
 
 		ExecutorContext(CGPUDeviceId device, CGPUQueueId gfx_queue, bool profile, std::pmr::memory_resource* memory_resource);
 

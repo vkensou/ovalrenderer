@@ -570,6 +570,8 @@ namespace HGEGraphics
 		cmdPool = cgpu_create_command_pool(gfx_queue, CGPU_NULLPTR);
 		if (profile)
 			profiler = new Profiler(device, gfx_queue, memory_resource);
+		auto adapter_detail = cgpu_query_adapter_detail(device->adapter);
+		support_shading_rate = adapter_detail->support_shading_rate;
 	}
 
 	void ExecutorContext::newFrame()

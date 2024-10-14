@@ -274,6 +274,8 @@ namespace HGEGraphics
 				(float)fbDesc.width, (float)fbDesc.height,
 				0.f, 1.f);
 			cgpu_render_encoder_set_scissor(encoder, 0, 0, fbDesc.width, fbDesc.height);
+			if (context.support_shading_rate)
+				cgpu_render_encoder_set_shading_rate(encoder, CGPU_SHADING_RATE_FULL, CGPU_SHADING_RATE_COMBINER_PASSTHROUGH, CGPU_SHADING_RATE_COMBINER_PASSTHROUGH);
 
 			if (pass.executable)
 			{
