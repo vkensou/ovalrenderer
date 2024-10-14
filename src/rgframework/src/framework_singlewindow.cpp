@@ -9,6 +9,10 @@
 #include <string.h>
 #include "cgpu_device.h"
 #include "tbox/tbox.h"
+#include "mimalloc.h"
+#ifdef __ANDROID__
+#include "jni.h"
+#endif
 
 void oval_log(void* user_data, ECGPULogSeverity severity, const char* fmt, ...)
 {
@@ -33,29 +37,35 @@ void oval_log(void* user_data, ECGPULogSeverity severity, const char* fmt, ...)
 
 void* oval_malloc(void* user_data, size_t size, const void* pool)
 {
+	// return mi_malloc(size);
 	if (size == 0) return nullptr;
 	return tb_allocator_malloc((tb_allocator_ref_t)user_data, size);
 }
 
 void* oval_realloc(void* user_data, void* ptr, size_t size, const void* pool)
 {
+	// return mi_realloc(ptr, size);
 	return tb_allocator_ralloc((tb_allocator_ref_t)user_data, ptr, size);
 }
 
 void* oval_calloc(void* user_data, size_t count, size_t size, const void* pool)
 {
+	// return mi_calloc(count, size);
 	if (size * count == 0) return nullptr;
 	return tb_allocator_nalloc0((tb_allocator_ref_t)user_data, count, size);
 }
 
 void oval_free(void* user_data, void* ptr, const void* pool)
 {
+	// mi_free(ptr);
+	// return;
 	if (!ptr) return;
 	tb_allocator_free((tb_allocator_ref_t)user_data, ptr);
 }
 
 void* oval_malloc_aligned(void* user_data, size_t size, size_t alignment, const void* pool)
 {
+	// return mi_malloc_aligned(size, alignment);
 	if (size == 0) return nullptr;
 	alignment = std::max<size_t>(alignment, 4);
 	return tb_allocator_align_malloc((tb_allocator_ref_t)user_data, size, alignment);
@@ -63,12 +73,14 @@ void* oval_malloc_aligned(void* user_data, size_t size, size_t alignment, const 
 
 void* oval_realloc_aligned(void* user_data, void* ptr, size_t size, size_t alignment, const void* pool)
 {
+	// return mi_realloc_aligned(ptr, size, alignment);
 	alignment = std::max<size_t>(alignment, 4);
 	return tb_allocator_align_ralloc((tb_allocator_ref_t)user_data, ptr, size, alignment);
 }
 
 void* oval_calloc_aligned(void* user_data, size_t count, size_t size, size_t alignment, const void* pool)
 {
+	// return mi_calloc_aligned(count, size, alignment);
 	if (size * count == 0) return nullptr;
 	alignment = std::max<size_t>(alignment, 4);
 	return tb_allocator_align_nalloc0((tb_allocator_ref_t)user_data, count, size, alignment);
@@ -76,13 +88,22 @@ void* oval_calloc_aligned(void* user_data, size_t count, size_t size, size_t ali
 
 void oval_free_aligned(void* user_data, void* ptr, const void* pool)
 {
+	// mi_free_aligned(ptr, 1);
+	// return;
 	if (!ptr) return;
 	tb_allocator_align_free((tb_allocator_ref_t)user_data, ptr);
 }
 
 oval_device_t* oval_create_device(const oval_device_descriptor* device_descriptor)
 {
-	tb_init(tb_null, tb_null);
+	void* priv = tb_null;
+#ifdef __ANDROID__
+	JNIEnv* env = (JNIEnv*)SDL_AndroidGetJNIEnv();
+	JavaVM* jvm;
+	env->GetJavaVM(&jvm);
+	priv = jvm;
+#endif
+	tb_init(priv, tb_null);
 
 	SDL_SetHint(SDL_HINT_VIDEO_EXTERNAL_CONTEXT, "1");
 	SDL_LogSetAllPriority(SDL_LOG_PRIORITY_VERBOSE);
